@@ -1,0 +1,28 @@
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Next.js
+frontend/.next/
+frontend/out/
+frontend/.vercel/
+
+# SAM
+infra/.aws-sam/
+infra/samconfig.toml
+
+# TypeScript build output
+backend/dist/
+*.tsbuildinfo
+
+# Env files
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+
+# Logs
+*.log

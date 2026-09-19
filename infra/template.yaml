@@ -1,0 +1,583 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  TrustReview - proof-of-visit reviews for local businesses.
+  DynamoDB (Businesses, Tokens w/ TTL, Reviews, Summaries), Cognito user pool,
+  API Gateway HTTP API with JWT auth, Lambda handlers, EventBridge-driven
+  risk scoring and Bedrock summarisation.
+
+Parameters:
+  AllowedOrigin:
+    Type: String
+    Default: "*"
+    Description: CORS origin allowed to call the API. Tighten to the deployed frontend URL after first deploy.
+  BedrockRegion:
+    Type: String
+    Default: us-east-1
+    Description: >
+      Region to call Bedrock in. Bedrock is not enabled in every region
+      (notably not always in ap-south-1), so this can point at a different
+      region than the rest of the stack.
+  BedrockModelId:
+    Type: String
+    Default: anthropic.claude-3-5-haiku-20241022-v1:0
+    Description: >
+      Bedrock model id. If your account requires an inference profile for
+      on-demand throughput, use e.g. us.anthropic.claude-3-5-haiku-20241022-v1:0.
+
+Globals:
+  Function:
+    Runtime: nodejs22.x
+    Architectures: [arm64]
+    Timeout: 10
+    MemorySize: 256
+    Environment:
+      Variables:
+        BUSINESSES_TABLE: !Ref BusinessesTable
+        TOKENS_TABLE: !Ref TokensTable
+        REVIEWS_TABLE: !Ref ReviewsTable
+        SUMMARIES_TABLE: !Ref SummariesTable
+        EVENT_BUS_NAME: !Ref TrustReviewEventBus
+        ALLOWED_ORIGIN: !Ref AllowedOrigin
+
+Resources:
+  # ---------------------------------------------------------------------
+  # DynamoDB
+  # ---------------------------------------------------------------------
+  BusinessesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: businessId
+          AttributeType: S
+        - AttributeName: ownerId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: businessId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: ownerId-index
+          KeySchema:
+            - AttributeName: ownerId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  TokensTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: tokenId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: tokenId
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+
+  ReviewsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: reviewId
+          AttributeType: S
+        - AttributeName: businessId
+          AttributeType: S
+        - AttributeName: authorId
+          AttributeType: S
+        - AttributeName: createdAt
+          AttributeType: S
+      KeySchema:
+        - AttributeName: reviewId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: businessId-createdAt-index
+          KeySchema:
+            - AttributeName: businessId
+              KeyType: HASH
+            - AttributeName: createdAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: authorId-createdAt-index
+          KeySchema:
+            - AttributeName: authorId
+              KeyType: HASH
+            - AttributeName: createdAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  SummariesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: businessId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: businessId
+          KeyType: HASH
+
+  # ---------------------------------------------------------------------
+  # Cognito
+  # ---------------------------------------------------------------------
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub "${AWS::StackName}-users"
+      UsernameAttributes: [email]
+      AutoVerifiedAttributes: [email]
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: true
+          RequireUppercase: false
+          RequireNumbers: true
+          RequireSymbols: false
+      Schema:
+        - Name: email
+          Required: true
+          Mutable: true
+          AttributeDataType: String
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPool
+      ClientName: !Sub "${AWS::StackName}-web"
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      AccessTokenValidity: 60
+      IdTokenValidity: 60
+      RefreshTokenValidity: 30
+      TokenValidityUnits:
+        AccessToken: minutes
+        IdToken: minutes
+        RefreshToken: days
+
+  AdminsGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: admins
+      UserPoolId: !Ref UserPool
+      Description: Platform moderators who can see and hide flagged reviews.
+
+  # ---------------------------------------------------------------------
+  # EventBridge
+  # ---------------------------------------------------------------------
+  TrustReviewEventBus:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: !Sub "${AWS::StackName}-events"
+
+  # ---------------------------------------------------------------------
+  # API Gateway HTTP API
+  # ---------------------------------------------------------------------
+  TrustReviewApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins:
+          - !Ref AllowedOrigin
+        AllowHeaders:
+          - Content-Type
+          - Authorization
+        AllowMethods:
+          - GET
+          - POST
+          - PATCH
+          - OPTIONS
+      Auth:
+        Authorizers:
+          CognitoAuthorizer:
+            JwtConfiguration:
+              issuer: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}"
+              audience:
+                - !Ref UserPoolClient
+            IdentitySource: "$request.header.Authorization"
+
+  # ---------------------------------------------------------------------
+  # Lambda functions
+  # ---------------------------------------------------------------------
+  HealthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: health.handler
+      Events:
+        Health:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref TrustReviewApi
+            Path: /health
+            Method: GET
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: "node22"
+        Sourcemap: false
+        EntryPoints:
+          - src/handlers/health.ts
+
+  CreateBusinessFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: createBusiness.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref BusinessesTable
+      Events:
+        CreateBusiness:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref TrustReviewApi
+            Path: /businesses
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: "node22"
+        Sourcemap: false
+        EntryPoints:
+          - src/handlers/createBusiness.ts
+
+  GetMyBusinessFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: getMyBusiness.handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref BusinessesTable
+      Events:
+        GetMyBusiness:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref TrustReviewApi
+            Path: /businesses/mine
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: "node22"
+        Sourcemap: false
+        EntryPoints:
+          - src/handlers/getMyBusiness.ts
+
+  GetProfileFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: getProfile.handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref BusinessesTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref SummariesTable
+      Events:
+        GetProfile:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref TrustReviewApi
+            Path: /businesses/{id}
+            Method: GET
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: "node22"
+        Sourcemap: false
+        EntryPoints:
+          - src/handlers/getProfile.ts
+
+  GetReviewsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: getReviews.handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ReviewsTable
+      Events:
+        GetReviews:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref TrustReviewApi
+            Path: /businesses/{id}/reviews
+            Method: GET
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: "node22"
+        Sourcemap: false
+        EntryPoints:
+          - src/handlers/getReviews.ts
+
+  IssueTokenFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: issueToken.handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref BusinessesTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TokensTable
+      Events:
+        IssueToken:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref TrustReviewApi
+            Path: /businesses/{id}/tokens
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: "node22"
+        Sourcemap: false
+        EntryPoints:
+          - src/handlers/issueToken.ts
+
+  RedeemTokenFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: redeemToken.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TokensTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref BusinessesTable
+      Events:
+        RedeemToken:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref TrustReviewApi
+            Path: /tokens/{tokenId}/redeem
+            Method: POST
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: "node22"
+        Sourcemap: false
+        EntryPoints:
+          - src/handlers/redeemToken.ts
+
+  SubmitReviewFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: submitReview.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TokensTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ReviewsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref BusinessesTable
+        - EventBridgePutEventsPolicy:
+            EventBusName: !Ref TrustReviewEventBus
+      Events:
+        SubmitReview:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref TrustReviewApi
+            Path: /reviews
+            Method: POST
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: "node22"
+        Sourcemap: false
+        EntryPoints:
+          - src/handlers/submitReview.ts
+
+  RespondToReviewFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: respondToReview.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ReviewsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref BusinessesTable
+      Events:
+        RespondToReview:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref TrustReviewApi
+            Path: /reviews/{id}/response
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: "node22"
+        Sourcemap: false
+        EntryPoints:
+          - src/handlers/respondToReview.ts
+
+  AdminListFlaggedFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: adminListFlagged.handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ReviewsTable
+      Events:
+        AdminListFlagged:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref TrustReviewApi
+            Path: /admin/flagged
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: "node22"
+        Sourcemap: false
+        EntryPoints:
+          - src/handlers/adminListFlagged.ts
+
+  AdminModerateReviewFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: adminModerateReview.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ReviewsTable
+      Events:
+        AdminModerateReview:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref TrustReviewApi
+            Path: /admin/reviews/{id}
+            Method: PATCH
+            Auth:
+              Authorizer: CognitoAuthorizer
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: "node22"
+        Sourcemap: false
+        EntryPoints:
+          - src/handlers/adminModerateReview.ts
+
+  RiskScorerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: riskScorer.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ReviewsTable
+      Events:
+        ReviewCreated:
+          Type: EventBridgeRule
+          Properties:
+            EventBusName: !Ref TrustReviewEventBus
+            Pattern:
+              source: ["trustreview.reviews"]
+              detail-type: ["ReviewCreated"]
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: "node22"
+        Sourcemap: false
+        EntryPoints:
+          - src/handlers/riskScorer.ts
+
+  SummariseFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: summarise.handler
+      Timeout: 30
+      Environment:
+        Variables:
+          BEDROCK_REGION: !Ref BedrockRegion
+          BEDROCK_MODEL_ID: !Ref BedrockModelId
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SummariesTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref ReviewsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref BusinessesTable
+        - Statement:
+            - Effect: Allow
+              Action: bedrock:InvokeModel
+              Resource:
+                - "arn:aws:bedrock:*::foundation-model/*"
+                - !Sub "arn:aws:bedrock:*:${AWS::AccountId}:inference-profile/*"
+      Events:
+        ReviewCreated:
+          Type: EventBridgeRule
+          Properties:
+            EventBusName: !Ref TrustReviewEventBus
+            Pattern:
+              source: ["trustreview.reviews"]
+              detail-type: ["ReviewCreated"]
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: "node22"
+        Sourcemap: false
+        EntryPoints:
+          - src/handlers/summarise.ts
+
+Outputs:
+  ApiUrl:
+    Description: Base URL of the HTTP API
+    Value: !Sub "https://${TrustReviewApi}.execute-api.${AWS::Region}.amazonaws.com"
+  UserPoolId:
+    Description: Cognito User Pool ID
+    Value: !Ref UserPool
+  UserPoolClientId:
+    Description: Cognito User Pool Client ID
+    Value: !Ref UserPoolClient
+  BusinessesTableName:
+    Value: !Ref BusinessesTable
+  TokensTableName:
+    Value: !Ref TokensTable
+  ReviewsTableName:
+    Value: !Ref ReviewsTable
+  SummariesTableName:
+    Value: !Ref SummariesTable
+  EventBusName:
+    Value: !Ref TrustReviewEventBus
+  Region:
+    Value: !Ref AWS::Region
