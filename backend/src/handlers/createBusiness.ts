@@ -16,6 +16,8 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     const name = typeof body.name === "string" ? body.name.trim() : "";
     const category = typeof body.category === "string" ? body.category.trim() : "";
     const city = typeof body.city === "string" ? body.city.trim() : "";
+    const lat = typeof body.lat === "number" ? body.lat : null;
+    const lng = typeof body.lng === "number" ? body.lng : null;
 
     if (!name) return badRequest("name is required");
 
@@ -27,6 +29,10 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       city: city || "",
       ownerId,
       logoUrl: null,
+      // Optional, captured once at setup via browser geolocation. Powers a
+      // soft LOCATION_MISMATCH risk signal on reviews redeemed far from here
+      // — it only ever flags for moderator review, never blocks a scan.
+      location: lat !== null && lng !== null ? { lat, lng } : null,
       createdAt: new Date().toISOString(),
       visitCount: 0,
       reviewCount: 0,

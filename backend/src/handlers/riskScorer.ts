@@ -7,12 +7,17 @@ const POINTS = {
   RAPID_POSTING: 35,
   DUPLICATE_TEXT: 40,
   STALE_TOKEN: 20,
+  LOCATION_MISMATCH: 25,
+  BUSINESS_BURST: 30,
 };
 
 const TEN_MINUTES_MS = 10 * 60 * 1000;
 const FIVE_MINUTES_MS = 5 * 60 * 1000;
 const DUPLICATE_THRESHOLD = 0.85;
 const STALE_TOKEN_SECONDS = 24 * 60 * 60;
+const LOCATION_MISMATCH_METERS = 500;
+const BUSINESS_BURST_WINDOW_MS = 15 * 60 * 1000;
+const BUSINESS_BURST_THRESHOLD = 5;
 
 type ReviewCreatedDetail = {
   reviewId: string;
@@ -20,6 +25,7 @@ type ReviewCreatedDetail = {
   tokenId: string;
   tokenIssuedAt?: number;
   tokenUsedAt?: number;
+  tokenDistanceMeters?: number | null;
 };
 
 type EventBridgeEnvelope = {
@@ -33,7 +39,7 @@ type EventBridgeEnvelope = {
  * or deletes a review.
  */
 export const handler = async (event: EventBridgeEnvelope) => {
-  const { reviewId, businessId, tokenIssuedAt, tokenUsedAt } = event.detail;
+  const { reviewId, businessId, tokenIssuedAt, tokenUsedAt, tokenDistanceMeters } = event.detail;
   console.log("riskScorer processing", event.detail);
 
   const reviewRes = await ddb.send(new GetCommand({ TableName: TABLES.REVIEWS, Key: { reviewId } }));
@@ -91,6 +97,25 @@ export const handler = async (event: EventBridgeEnvelope) => {
     if (tokenUsedAt - tokenIssuedAt > STALE_TOKEN_SECONDS) {
       signals.push("STALE_TOKEN");
     }
+  }
+
+  // LOCATION_MISMATCH: the scanner's GPS position (if granted) was far from
+  // the business's registered location. Only evaluated when both are known
+  // (business opted into location, customer granted browser geolocation) —
+  // silently skipped otherwise, so it never penalizes businesses or
+  // customers who didn't opt in.
+  if (typeof tokenDistanceMeters === "number" && tokenDistanceMeters > LOCATION_MISMATCH_METERS) {
+    signals.push("LOCATION_MISMATCH");
+  }
+
+  // BUSINESS_BURST: this business received an unusually high number of
+  // verified reviews in a short window, e.g. an owner or friends cycling
+  // through the rotating code themselves rather than real, spread-out visits.
+  const recentBusinessReviews = (businessReviews.Items ?? []).filter(
+    (r) => r.reviewId !== reviewId && reviewCreatedMs - Date.parse(r.createdAt) < BUSINESS_BURST_WINDOW_MS
+  ).length;
+  if (recentBusinessReviews >= BUSINESS_BURST_THRESHOLD) {
+    signals.push("BUSINESS_BURST");
   }
 
   const riskScore = Math.min(

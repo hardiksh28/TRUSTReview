@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import { getAnonIdentity } from "@/lib/anon";
+import { getBrowserLocation } from "@/lib/geo";
 
 type RedeemResponse = { redeemed: true; businessId: string; tokenId: string; usedAt: number };
 type ProfileResponse = { business: { name: string } };
@@ -44,9 +45,14 @@ function ScanContent() {
 
     async function redeem() {
       const { anonId } = getAnonIdentity();
+      // Best-effort: if the browser grants location quickly, it's used as a
+      // soft LOCATION_MISMATCH signal later. Never blocks or fails the scan
+      // if denied, unavailable, or slow.
+      const location = await getBrowserLocation(3000);
       try {
         const res = await api.post<RedeemResponse>(`/tokens/${tokenId}/redeem`, {
           who: anonId,
+          ...(location ?? {}),
         });
         if (cancelled) return;
 

@@ -10,6 +10,7 @@ import { RotatingQr } from "@/components/RotatingQr";
 import { FlaggedBadge, VerifiedBadge } from "@/components/VerifiedBadge";
 import { Squiggle } from "@/components/Squiggle";
 import { Logo } from "@/components/Logo";
+import { getBrowserLocation } from "@/lib/geo";
 import type { ProfileResponse, PublicReview, ReviewsResponse } from "@/lib/types";
 
 type MyBusiness = { businessId: string; name: string; category: string; city: string };
@@ -267,15 +268,27 @@ function CreateBusinessForm({ onCreated }: { onCreated: () => void }) {
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
   const [city, setCity] = useState("");
+  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function captureLocation() {
+    setLocating(true);
+    setLocationError(false);
+    const loc = await getBrowserLocation(6000);
+    setLocation(loc);
+    setLocationError(!loc);
+    setLocating(false);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
     try {
-      await api.post("/businesses", { name, category, city }, true);
+      await api.post("/businesses", { name, category, city, ...(location ?? {}) }, true);
       onCreated();
     } catch {
       setError("Could not create your business. Please try again.");
@@ -310,6 +323,27 @@ function CreateBusinessForm({ onCreated }: { onCreated: () => void }) {
           <div>
             <label className="mb-1.5 block text-sm font-medium text-neutral-700">City</label>
             <input className="input" value={city} onChange={(e) => setCity(e.target.value)} />
+          </div>
+          <div>
+            <button
+              type="button"
+              onClick={captureLocation}
+              disabled={locating}
+              className="btn-secondary w-full py-2.5 text-xs"
+            >
+              {locating
+                ? "Getting your location..."
+                : location
+                  ? "Location captured"
+                  : "Use my current location (optional)"}
+            </button>
+            <p className="mt-1.5 text-xs text-neutral-400">
+              {location
+                ? "Helps flag reviews scanned far from your business for a moderator to check."
+                : locationError
+                  ? "Could not get your location. You can skip this and add it later."
+                  : "Optional. Powers a soft fraud signal — never blocks a scan."}
+            </p>
           </div>
           {error && <p className="text-sm text-reject-600">{error}</p>}
           <button type="submit" disabled={submitting} className="btn-primary w-full">

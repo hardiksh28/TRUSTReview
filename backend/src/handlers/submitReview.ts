@@ -131,6 +131,8 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
                 tokenId,
                 tokenIssuedAt: token.issuedAt,
                 tokenUsedAt: token.usedAt,
+                tokenDistanceMeters:
+                  typeof token.redeemDistanceMeters === "number" ? token.redeemDistanceMeters : null,
               }),
             },
           ],
