@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AmplifyConfigure } from "@/components/AmplifyConfigure";
+import { AnalyticsInit } from "@/components/AnalyticsInit";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
@@ -15,6 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={inter.variable}>
       <body>
         <AmplifyConfigure />
+        <AnalyticsInit />
         {children}
       </body>
     </html>

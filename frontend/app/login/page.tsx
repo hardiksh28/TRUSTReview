@@ -6,6 +6,7 @@ import Link from "next/link";
 import { confirmSignUp, signIn, signUp } from "@/lib/auth";
 import { Squiggle } from "@/components/Squiggle";
 import { Logo } from "@/components/Logo";
+import { track } from "@/lib/analytics";
 
 type Mode = "signin" | "signup" | "confirm";
 
@@ -25,6 +26,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await signIn(email, password);
+      track("signed_in");
       router.push("/dashboard");
     } catch (err: any) {
       setError(err?.message ?? "Could not sign in. Check your email and password.");
@@ -39,6 +41,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await signUp(email, password);
+      track("signup_started");
       setInfo("We sent a confirmation code to your email.");
       setMode("confirm");
     } catch (err: any) {
@@ -54,6 +57,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await confirmSignUp(email, code);
+      track("signup_confirmed");
       setInfo("Account confirmed. You can sign in now.");
       setMode("signin");
     } catch (err: any) {

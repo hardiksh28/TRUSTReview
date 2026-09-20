@@ -11,6 +11,7 @@ import { FlaggedBadge, VerifiedBadge } from "@/components/VerifiedBadge";
 import { Squiggle } from "@/components/Squiggle";
 import { Logo } from "@/components/Logo";
 import { getBrowserLocation } from "@/lib/geo";
+import { track } from "@/lib/analytics";
 import type { ProfileResponse, PublicReview, ReviewsResponse } from "@/lib/types";
 
 type MyBusiness = { businessId: string; name: string; category: string; city: string };
@@ -349,6 +350,7 @@ function useLocationFormState() {
         { name, category, city, ...(location ?? {}) },
         true
       );
+      track("business_created", { businessId: res.businessId, hasLocation: !!location });
       onCreated(res.businessId);
     } catch {
       setError("Could not create your business. Please try again.");

@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import { getAnonIdentity } from "@/lib/anon";
 import { getBrowserLocation } from "@/lib/geo";
+import { track } from "@/lib/analytics";
 
 type RedeemResponse = { redeemed: true; businessId: string; tokenId: string; usedAt: number };
 type ProfileResponse = { business: { name: string } };
@@ -69,6 +70,7 @@ function ScanContent() {
           // Non-fatal: the success screen still works without a name.
         }
 
+        track("qr_scanned", { businessId: res.businessId });
         if (!cancelled) setState({ status: "success", businessId: res.businessId, businessName });
       } catch (err) {
         if (cancelled) return;

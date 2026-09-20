@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
+import { track } from "@/lib/analytics";
 
 export default function ContactPage() {
   const [name, setName] = useState("");
@@ -18,6 +19,7 @@ export default function ContactPage() {
     setError(null);
     try {
       await api.post("/contact", { name, email, message });
+      track("contact_form_submitted");
       setSent(true);
     } catch {
       setError("Could not send your message. Please try again in a moment.");

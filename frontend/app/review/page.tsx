@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import { getAnonIdentity } from "@/lib/anon";
 import { RatingSlider } from "@/components/RatingSlider";
+import { track } from "@/lib/analytics";
 
 type Grant = { businessId: string; tokenId: string };
 
@@ -60,6 +61,7 @@ function ReviewContent() {
         anonId,
         anonSince,
       });
+      track("review_submitted", { businessId: grant.businessId });
       setSubmitted(true);
     } catch (err) {
       if (err instanceof ApiError && err.reason === "ALREADY_REVIEWED") {
