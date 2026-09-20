@@ -7,7 +7,7 @@ const STEPS = [
   {
     n: 2,
     title: "Scan, then review",
-    body: "One scan verifies the visit. Only then can the customer rate food, service, cleanliness and value — no visit, no review.",
+    body: "One scan verifies the visit. Only then can the customer rate food, service, cleanliness and value. No visit, no review.",
   },
   {
     n: 3,

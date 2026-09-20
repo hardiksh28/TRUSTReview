@@ -49,7 +49,7 @@ export default function ContactPage() {
               </div>
               <h1 className="mt-4 text-xl font-semibold text-neutral-900">Message sent</h1>
               <p className="mt-2 text-sm text-neutral-500">
-                Thanks for reaching out — I&apos;ll get back to you soon.
+                Thanks for reaching out. I&apos;ll get back to you soon.
               </p>
               <Link href="/" className="btn-secondary mt-6 inline-flex">
                 Back to home

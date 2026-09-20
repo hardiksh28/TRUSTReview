@@ -53,7 +53,7 @@ export default function LandingPage() {
             </h1>
             <p className="mt-5 max-w-lg text-lg leading-relaxed text-neutral-600">
               Every review on the internet is an unverified claim. TrustReview makes the visit
-              itself the proof — a one-time QR code issued at the counter, spent once, tied to
+              itself the proof: a one-time QR code issued at the counter, spent once, tied to
               exactly one review.
             </p>
 
@@ -110,7 +110,7 @@ export default function LandingPage() {
             H
           </div>
           <p className="mt-4 text-base font-semibold text-neutral-900">
-            Hi, I&apos;m Hardik — the creator of TrustReview.
+            Hi, I&apos;m Hardik, the creator of TrustReview.
           </p>
           <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-neutral-500">
             Built solo over a weekend for the Bharat Builds Tour (WeMakeDevs &times; AWS)

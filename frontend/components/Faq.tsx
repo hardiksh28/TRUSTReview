@@ -5,7 +5,7 @@ import { useState } from "react";
 const FAQS = [
   {
     q: "Can't someone just photograph the QR code and share it?",
-    a: "They can, and it buys them nothing. Each code is single-use and expires within the hour. The first person to redeem it is the only one who ever can — enforced by a conditional write at the database level, not by application logic that could be bypassed.",
+    a: "They can, and it buys them nothing. Each code is single-use and expires within the hour. The first person to redeem it is the only one who ever can. That's enforced by a conditional write at the database level, not by application logic that could be bypassed.",
   },
   {
     q: "The business controls the QR code, so can't they only show it to happy customers?",
@@ -13,11 +13,11 @@ const FAQS = [
   },
   {
     q: "Is the fraud detection AI-powered?",
-    a: "No, deliberately. It's four transparent, deterministic rules — not a black-box model. A business can see exactly why a review was flagged and contest it. We flag; a human moderator always decides.",
+    a: "No, deliberately. It's four transparent, deterministic rules, not a black-box model. A business can see exactly why a review was flagged and contest it. We flag; a human moderator always decides.",
   },
   {
     q: "How is this different from Google or Yelp reviews?",
-    a: "Those platforms let anyone write a review for any business with no proof of a visit, and catch fraud after the fact with pattern detection. TrustReview makes the visit itself the prerequisite — a review can't be created without first consuming a proof-of-visit token.",
+    a: "Those platforms let anyone write a review for any business with no proof of a visit, and catch fraud after the fact with pattern detection. TrustReview makes the visit itself the prerequisite: a review can't be created without first consuming a proof-of-visit token.",
   },
   {
     q: "What does a business need to get started?",

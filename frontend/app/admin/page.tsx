@@ -68,7 +68,7 @@ export default function AdminPage() {
     <main className="mx-auto max-w-3xl px-6 py-10">
       <h1 className="mb-1 text-2xl font-bold text-neutral-900">Flagged reviews</h1>
       <p className="mb-8 text-sm text-neutral-500">
-        Reviews with two or more risk signals. We flag, you decide — nothing is auto-hidden.
+        Reviews with two or more risk signals. We flag, you decide. Nothing is auto-hidden.
       </p>
 
       {reviews === null && <p className="text-sm text-neutral-400">Loading...</p>}

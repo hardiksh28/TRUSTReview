@@ -1,4 +1,4 @@
-// Decorative, hand-authored "QR" pattern — not a real scannable code.
+// Decorative, hand-authored "QR" pattern. Not a real scannable code.
 const QR_PATTERN = [
   [1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1],
   [1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 1],
