@@ -3,6 +3,7 @@ import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { HeroPhones } from "@/components/HeroPhones";
 import { HowItWorks } from "@/components/HowItWorks";
 import { TrustFeatures } from "@/components/TrustFeatures";
+import { Pricing } from "@/components/Pricing";
 import { Faq } from "@/components/Faq";
 import { Squiggle } from "@/components/Squiggle";
 import { Logo, LogoMark } from "@/components/Logo";
@@ -28,13 +29,19 @@ export default function LandingPage() {
               Browse businesses
             </Link>
             <Link
+              href="#pricing"
+              className="hidden text-sm font-medium text-neutral-600 hover:text-neutral-900 sm:block"
+            >
+              Pricing
+            </Link>
+            <Link
               href="/login"
               className="hidden text-sm font-medium text-neutral-600 hover:text-neutral-900 sm:block"
             >
               Login
             </Link>
             <Link href="/login" className="btn-primary px-5 py-2.5 text-sm">
-              I&apos;m a business
+              Start free
             </Link>
           </div>
         </div>
@@ -67,7 +74,7 @@ export default function LandingPage() {
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link href="/login" className="btn-primary">
-                I&apos;m a business
+                Start free
               </Link>
               <Link href={`/b/?id=${DEMO_BUSINESS_ID}`} className="btn-secondary">
                 See a live Trust Profile
@@ -76,7 +83,7 @@ export default function LandingPage() {
 
             <p className="mt-8 text-sm text-neutral-400">
               A new caf&eacute; with twelve honest reviews shouldn&apos;t lose to a ghost kitchen
-              with four hundred bought ones.
+              with four hundred bought ones. Free for one location — no card required.
             </p>
           </div>
 
@@ -99,6 +106,8 @@ export default function LandingPage() {
 
       <TrustFeatures />
 
+      <Pricing />
+
       <Faq />
 
       <footer className="relative overflow-hidden border-t border-neutral-200/70 px-6 py-16">
@@ -120,11 +129,11 @@ export default function LandingPage() {
             H
           </div>
           <p className="mt-4 text-base font-semibold text-neutral-900">
-            Hi, I&apos;m Hardik, the creator of TrustReview.
+            Hi, I&apos;m Hardik, the founder of TrustReview.
           </p>
           <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-neutral-500">
-            Built solo over a weekend for the Bharat Builds Tour (WeMakeDevs &times; AWS)
-            hackathon. Questions, feedback, or want to bring this to your business?
+            Built to fix a simple problem: reviews that can be bought shouldn&apos;t count.
+            Questions, feedback, or want to bring this to your business?
           </p>
           <Link href="/contact" className="btn-secondary mt-5 inline-flex">
             Get in touch
@@ -138,14 +147,9 @@ export default function LandingPage() {
             <Link href="/contact" className="hover:text-neutral-700">
               Contact
             </Link>
-            <a
-              href="https://github.com/hardiksh28/TRUSTReview"
-              target="_blank"
-              rel="noreferrer"
-              className="hover:text-neutral-700"
-            >
-              Source on GitHub
-            </a>
+            <Link href="#pricing" className="hover:text-neutral-700">
+              Pricing
+            </Link>
           </div>
         </div>
       </footer>
