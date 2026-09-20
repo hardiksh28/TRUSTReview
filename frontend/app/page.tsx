@@ -3,12 +3,18 @@ import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { HeroPhones } from "@/components/HeroPhones";
 import { HowItWorks } from "@/components/HowItWorks";
 import { Faq } from "@/components/Faq";
+import { Squiggle } from "@/components/Squiggle";
 
 const DEMO_BUSINESS_ID = process.env.NEXT_PUBLIC_DEMO_BUSINESS_ID ?? "biz_demo001";
 
+const AMBER = "#F3B94D";
+const CORAL = "#FF7A59";
+const TEAL = "#14B8A6";
+const INDIGO = "#7C6FF0";
+
 export default function LandingPage() {
   return (
-    <main>
+    <main className="overflow-x-hidden">
       <nav className="sticky top-0 z-20 border-b border-neutral-200/60 bg-white/70 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <span className="text-lg font-bold tracking-tight text-neutral-900">TrustReview</span>
@@ -27,7 +33,15 @@ export default function LandingPage() {
       </nav>
 
       <div className="relative overflow-hidden">
-        <div className="dot-grid pointer-events-none absolute inset-x-0 top-0 -z-10 h-[560px]" />
+        <Squiggle
+          color={AMBER}
+          className="pointer-events-none absolute -left-16 -top-16 -z-10 w-40 opacity-90 sm:w-72 lg:w-96"
+        />
+        <Squiggle
+          color={CORAL}
+          flip
+          className="pointer-events-none absolute -right-16 -top-14 -z-10 w-40 opacity-90 sm:w-72 lg:w-96"
+        />
 
         <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-14 sm:py-20 lg:grid-cols-2 lg:gap-8">
           <div>
@@ -62,13 +76,32 @@ export default function LandingPage() {
         </section>
       </div>
 
-      <div className="section-tint">
+      <div className="section-tint relative overflow-hidden">
+        <Squiggle
+          color={TEAL}
+          className="pointer-events-none absolute -left-20 bottom-0 -z-10 hidden w-72 opacity-80 sm:block sm:w-80"
+        />
+        <Squiggle
+          color={INDIGO}
+          flip
+          className="pointer-events-none absolute -right-16 top-10 -z-10 hidden w-64 opacity-80 sm:block sm:w-80"
+        />
         <HowItWorks />
       </div>
 
       <Faq />
 
-      <footer className="border-t border-neutral-200/70 px-6 py-16">
+      <footer className="relative overflow-hidden border-t border-neutral-200/70 px-6 py-16">
+        <Squiggle
+          color={CORAL}
+          className="pointer-events-none absolute -left-20 -bottom-10 -z-10 hidden w-72 opacity-60 sm:block"
+        />
+        <Squiggle
+          color={TEAL}
+          flip
+          className="pointer-events-none absolute -right-16 -bottom-6 -z-10 hidden w-64 opacity-60 sm:block"
+        />
+
         <div className="card mx-auto max-w-xl text-center">
           <div
             className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-verified-600 text-base font-bold text-white"
