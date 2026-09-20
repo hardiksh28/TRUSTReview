@@ -2,6 +2,7 @@ import Link from "next/link";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { HeroPhones } from "@/components/HeroPhones";
 import { HowItWorks } from "@/components/HowItWorks";
+import { TrustFeatures } from "@/components/TrustFeatures";
 import { Faq } from "@/components/Faq";
 import { Squiggle } from "@/components/Squiggle";
 import { Logo, LogoMark } from "@/components/Logo";
@@ -95,6 +96,8 @@ export default function LandingPage() {
         />
         <HowItWorks />
       </div>
+
+      <TrustFeatures />
 
       <Faq />
 
