@@ -24,7 +24,21 @@ export async function confirmSignUp(email: string, code: string) {
 
 export async function signIn(email: string, password: string) {
   configureAmplify();
-  return amplifySignIn({ username: email, password });
+  try {
+    return await amplifySignIn({ username: email, password });
+  } catch (err: any) {
+    // A stale session from an earlier sign-in (this device/browser, possibly
+    // a different account) blocks a fresh signIn() call. Clear it and retry
+    // once rather than surfacing Amplify's internal error to the user.
+    const alreadySignedIn =
+      err?.name === "UserAlreadyAuthenticatedException" ||
+      /already a signed in user/i.test(err?.message ?? "");
+    if (alreadySignedIn) {
+      await amplifySignOut();
+      return await amplifySignIn({ username: email, password });
+    }
+    throw err;
+  }
 }
 
 export async function signOut() {
