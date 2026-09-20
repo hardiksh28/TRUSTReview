@@ -34,7 +34,7 @@ export function Faq() {
         Frequently asked questions
       </h2>
 
-      <div className="mt-10 divide-y divide-neutral-100 rounded-2xl border border-neutral-200 bg-white">
+      <div className="card mt-10 divide-y divide-neutral-100 overflow-hidden p-0">
         {FAQS.map((item, i) => {
           const isOpen = open === i;
           return (
@@ -42,7 +42,7 @@ export function Faq() {
               <button
                 type="button"
                 onClick={() => setOpen(isOpen ? null : i)}
-                className="flex w-full items-center justify-between gap-4 px-6 py-5 text-left"
+                className="flex w-full items-center justify-between gap-4 px-6 py-5 text-left transition-colors hover:bg-neutral-50"
                 aria-expanded={isOpen}
               >
                 <span className="text-sm font-semibold text-neutral-900">{item.q}</span>

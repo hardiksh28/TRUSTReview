@@ -77,7 +77,7 @@ function TrustProfileContent() {
       <section className="card mb-6">
         <div className="flex flex-col items-center gap-8 sm:flex-row sm:items-start">
           <div className="flex flex-col items-center">
-            <span className="text-6xl font-bold leading-none text-neutral-900">
+            <span className="bg-gradient-to-b from-neutral-900 to-neutral-700 bg-clip-text text-6xl font-bold leading-none text-transparent">
               {overall.toFixed(1)}
             </span>
             <span className="mt-1 text-sm text-neutral-500">out of 5</span>

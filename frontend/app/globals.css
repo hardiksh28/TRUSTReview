@@ -7,23 +7,61 @@
 }
 
 body {
-  @apply bg-neutral-50 text-neutral-900 antialiased;
+  @apply text-neutral-900 antialiased;
+  background-color: #fafaf9;
+  background-image:
+    radial-gradient(ellipse 70% 45% at 50% -8%, rgba(11, 107, 58, 0.09), transparent),
+    radial-gradient(ellipse 50% 35% at 100% 0%, rgba(11, 107, 58, 0.05), transparent);
+  background-repeat: no-repeat;
 }
 
 @layer components {
   .card {
-    @apply rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm;
+    @apply rounded-2xl border border-neutral-200/80 bg-white p-6;
+    box-shadow:
+      0 1px 2px rgba(15, 23, 42, 0.04),
+      0 12px 28px -12px rgba(15, 23, 42, 0.12);
+  }
+
+  .card-hover {
+    @apply transition-all duration-200;
+  }
+  .card-hover:hover {
+    @apply -translate-y-0.5 border-neutral-300/80;
+    box-shadow:
+      0 2px 4px rgba(15, 23, 42, 0.05),
+      0 20px 36px -14px rgba(15, 23, 42, 0.16);
   }
 
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-xl bg-verified-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-verified-700 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center rounded-xl bg-verified-600 px-5 py-3 text-sm font-semibold text-white transition-all duration-150 hover:-translate-y-0.5 hover:bg-verified-700 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0;
+    box-shadow:
+      0 1px 2px rgba(11, 107, 58, 0.1),
+      0 8px 20px -6px rgba(11, 107, 58, 0.45);
+  }
+  .btn-primary:hover {
+    box-shadow:
+      0 2px 4px rgba(11, 107, 58, 0.15),
+      0 12px 28px -6px rgba(11, 107, 58, 0.5);
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center rounded-xl border border-neutral-300 bg-white px-5 py-3 text-sm font-semibold text-neutral-800 transition hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center rounded-xl border border-neutral-300 bg-white px-5 py-3 text-sm font-semibold text-neutral-800 transition-all duration-150 hover:-translate-y-0.5 hover:border-neutral-400 hover:bg-neutral-50 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   }
 
   .input {
-    @apply w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-verified-600 focus:ring-2 focus:ring-verified-100;
+    @apply w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition-all duration-150 placeholder:text-neutral-400 focus:border-verified-600 focus:ring-4 focus:ring-verified-600/10;
+  }
+
+  .section-tint {
+    background: linear-gradient(180deg, rgba(11, 107, 58, 0.045) 0%, rgba(11, 107, 58, 0) 100%);
+  }
+
+  .dot-grid {
+    background-image: radial-gradient(rgba(15, 23, 42, 0.08) 1px, transparent 1px);
+    background-size: 22px 22px;
+    -webkit-mask-image: radial-gradient(ellipse 65% 60% at 50% 40%, black 30%, transparent 75%);
+    mask-image: radial-gradient(ellipse 65% 60% at 50% 40%, black 30%, transparent 75%);
   }
 }

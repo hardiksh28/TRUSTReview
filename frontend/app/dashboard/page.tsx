@@ -153,9 +153,13 @@ export default function DashboardPage() {
 
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="card text-center">
-      <p className="text-2xl font-bold text-neutral-900">{value}</p>
-      <p className="mt-1 text-xs font-medium uppercase tracking-wide text-neutral-500">{label}</p>
+    <div className="card-hover card text-center">
+      <p className="bg-gradient-to-b from-neutral-900 to-neutral-700 bg-clip-text text-3xl font-bold text-transparent">
+        {value}
+      </p>
+      <p className="mt-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-400">
+        {label}
+      </p>
     </div>
   );
 }
