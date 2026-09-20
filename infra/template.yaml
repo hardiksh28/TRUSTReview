@@ -217,6 +217,15 @@ Resources:
               audience:
                 - !Ref UserPoolClient
             IdentitySource: "$request.header.Authorization"
+      # Stage-wide throttle as a backstop against a runaway client or bug —
+      # this is aggregate across all callers, not per-IP. AWS WAF does not
+      # support direct association with API Gateway HTTP APIs (only REST
+      # APIs, ALB, CloudFront, AppSync, Cognito) — real per-IP rate limiting
+      # would need a CloudFront distribution in front of this API with WAF
+      # attached there, which is a bigger change left for later.
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 50
+        ThrottlingRateLimit: 25
 
   # ---------------------------------------------------------------------
   # Lambda functions
