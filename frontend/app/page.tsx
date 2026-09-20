@@ -21,6 +21,12 @@ export default function LandingPage() {
           <Logo />
           <div className="flex items-center gap-3">
             <Link
+              href="/browse"
+              className="hidden text-sm font-medium text-neutral-600 hover:text-neutral-900 sm:block"
+            >
+              Browse businesses
+            </Link>
+            <Link
               href="/login"
               className="hidden text-sm font-medium text-neutral-600 hover:text-neutral-900 sm:block"
             >

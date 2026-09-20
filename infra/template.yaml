@@ -318,6 +318,30 @@ Resources:
         EntryPoints:
           - src/handlers/getMyBusiness.ts
 
+  ListBusinessesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: listBusinesses.handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref BusinessesTable
+      Events:
+        ListBusinesses:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref TrustReviewApi
+            Path: /businesses
+            Method: GET
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: "node22"
+        Sourcemap: false
+        EntryPoints:
+          - src/handlers/listBusinesses.ts
+
   GetProfileFunction:
     Type: AWS::Serverless::Function
     Properties:

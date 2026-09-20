@@ -41,3 +41,15 @@ export type PublicReview = {
 };
 
 export type ReviewsResponse = { reviews: PublicReview[] };
+
+export type BusinessSummary = {
+  businessId: string;
+  name: string;
+  category: string;
+  city: string;
+  overall: number;
+  reviewCount: number;
+  visitCount: number;
+};
+
+export type BusinessesResponse = { businesses: BusinessSummary[] };
