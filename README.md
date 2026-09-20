@@ -8,8 +8,8 @@
 
 Built for the Bharat Builds Tour (WeMakeDevs × AWS) hackathon, Ship It + Best UI tracks.
 
-- **Live URL:** `<PENDING DEPLOY>`
-- **Demo Trust Profile:** `<PENDING DEPLOY>/b/biz_demo001`
+- **Live URL:** https://claude-admiring-cray-5mdfmc.d3tz9isp3b5bjs.amplifyapp.com
+- **Demo Trust Profile:** https://claude-admiring-cray-5mdfmc.d3tz9isp3b5bjs.amplifyapp.com/b/?id=biz_demo001
 
 ## The problem
 
@@ -177,21 +177,49 @@ flagged), plus two Cognito logins printed to the console:
 (Override `SEED_OWNER_EMAIL`, `SEED_OWNER_PASSWORD`, etc. as environment variables if you want
 different demo credentials.)
 
-### 3. Deploy the frontend (AWS Amplify Hosting)
+### 3. Deploy the frontend (AWS Amplify Hosting, static export)
+
+The frontend is a **static export** (`next.config.mjs` sets `output: "export"`): every page fetches
+its data from the API at runtime, so there's no server-side rendering to host. This sidesteps
+Amplify's SSR "compute" hosting mode entirely, which expects a specific `.amplify-hosting`
+build-output contract that a bare `next build` doesn't produce on its own. The three screens that
+need a dynamic ID (Trust Profile, scan result, review form) read it from a query string
+(`/b/?id=`, `/scan/?token=`, `/review/?token=`) rather than a path segment, since static export
+can't pre-render unknown future IDs as path segments.
 
 1. Push this repo to GitHub (already done if you're reading this from the repo).
-2. In the Amplify console → **New app → Host web app**, connect this GitHub repo, and set the app
-   root to `frontend/`.
-3. Add these environment variables in the Amplify app's build settings (values from the `sam
-   deploy` outputs):
+2. In the Amplify console → **New app → Host web app**, connect this GitHub repo and branch.
+3. On the build settings screen, click **Edit YML file** and use:
+   ```yaml
+   version: 1
+   applications:
+     - appRoot: frontend
+       frontend:
+         phases:
+           preBuild:
+             commands:
+               - npm ci
+           build:
+             commands:
+               - npm run build
+         artifacts:
+           baseDirectory: out
+           files:
+             - '**/*'
+         cache:
+           paths:
+             - node_modules/**/*
+   ```
+4. Add these environment variables in **Advanced settings** (values from the `sam deploy` outputs):
    - `NEXT_PUBLIC_API_URL` — the `ApiUrl` output
    - `NEXT_PUBLIC_USER_POOL_ID` — the `UserPoolId` output
    - `NEXT_PUBLIC_USER_POOL_CLIENT_ID` — the `UserPoolClientId` output
    - `NEXT_PUBLIC_DEMO_BUSINESS_ID` — `biz_demo001` (or leave unset to use that default)
-4. Deploy. Amplify Hosting auto-detects Next.js 14 App Router and builds it in standard
-   (SSR-capable) mode — every page here is effectively client-rendered against the API, so this
-   costs almost nothing at hackathon scale.
-5. (Optional hardening) Once you have the Amplify URL, re-run `sam deploy` with
+5. Save and deploy. If the app was ever created/detected as platform `WEB_COMPUTE` (Amplify's SSR
+   mode), switch it back to plain `WEB` static hosting first — `aws amplify update-app --app-id
+   <id> --platform WEB` — otherwise it will look for the SSR manifest and fail with "Failed to find
+   the deploy-manifest.json file."
+6. (Optional hardening) Once you have the Amplify URL, re-run `sam deploy` with
    `--parameter-overrides AllowedOrigin=https://your-amplify-url` to restrict API CORS from `*` to
    the real frontend origin.
 
