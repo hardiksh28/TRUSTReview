@@ -88,6 +88,13 @@ export default function DashboardPage() {
       />
 
       <div className="mx-auto max-w-3xl px-6 py-10">
+        <Link
+          href="/"
+          className="mb-6 inline-block text-sm font-bold text-neutral-900 hover:text-verified-700"
+        >
+          &larr; TrustReview
+        </Link>
+
         <div className="mb-8 flex items-center justify-between">
           <div>
             <p className="text-sm text-neutral-500">{business.category} &middot; {business.city}</p>

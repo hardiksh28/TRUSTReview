@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { api } from "@/lib/api";
 import { isAdmin, isSignedIn } from "@/lib/auth";
 import { Squiggle } from "@/components/Squiggle";
@@ -79,6 +80,13 @@ export default function AdminPage() {
       />
 
       <div className="mx-auto max-w-3xl px-6 py-10">
+        <Link
+          href="/"
+          className="mb-6 inline-block text-sm font-bold text-neutral-900 hover:text-verified-700"
+        >
+          &larr; TrustReview
+        </Link>
+
         <h1 className="mb-1 text-2xl font-bold text-neutral-900">Flagged reviews</h1>
         <p className="mb-8 text-sm text-neutral-500">
           Reviews with two or more risk signals. We flag, you decide. Nothing is auto-hidden.
