@@ -41,7 +41,7 @@ export default function LandingPage() {
             <Link href="/login" className="btn-primary">
               I&apos;m a business
             </Link>
-            <Link href={`/b/${DEMO_BUSINESS_ID}`} className="btn-secondary">
+            <Link href={`/b/?id=${DEMO_BUSINESS_ID}`} className="btn-secondary">
               See a live Trust Profile
             </Link>
           </div>

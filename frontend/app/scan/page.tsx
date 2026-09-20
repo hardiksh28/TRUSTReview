@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import { getAnonIdentity } from "@/lib/anon";
 
@@ -17,16 +17,35 @@ type State =
   | { status: "error" };
 
 export default function ScanPage() {
-  const params = useParams<{ tokenId: string }>();
+  return (
+    <Suspense
+      fallback={
+        <ScanShell tone="neutral">
+          <div className="h-16 w-16 animate-pulse rounded-full bg-neutral-200" />
+        </ScanShell>
+      }
+    >
+      <ScanContent />
+    </Suspense>
+  );
+}
+
+function ScanContent() {
+  const searchParams = useSearchParams();
+  const tokenId = searchParams.get("token") ?? "";
   const [state, setState] = useState<State>({ status: "loading" });
 
   useEffect(() => {
+    if (!tokenId) {
+      setState({ status: "error" });
+      return;
+    }
     let cancelled = false;
 
     async function redeem() {
       const { anonId } = getAnonIdentity();
       try {
-        const res = await api.post<RedeemResponse>(`/tokens/${params.tokenId}/redeem`, {
+        const res = await api.post<RedeemResponse>(`/tokens/${tokenId}/redeem`, {
           who: anonId,
         });
         if (cancelled) return;
@@ -59,7 +78,7 @@ export default function ScanPage() {
     return () => {
       cancelled = true;
     };
-  }, [params.tokenId]);
+  }, [tokenId]);
 
   if (state.status === "loading") {
     return (
@@ -80,7 +99,7 @@ export default function ScanPage() {
           You can now leave one review for this visit.
         </p>
         <Link
-          href={`/review/${params.tokenId}`}
+          href={`/review/?token=${tokenId}`}
           className="mt-8 inline-flex items-center justify-center rounded-xl bg-white px-6 py-3 text-sm font-semibold text-verified-700 shadow-sm transition hover:bg-verified-50"
         >
           Leave a review
@@ -89,7 +108,6 @@ export default function ScanPage() {
     );
   }
 
-  const isExpired = state.status === "expired" || state.status === "error";
   return (
     <ScanShell tone="reject">
       <CrossIcon />

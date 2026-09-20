@@ -82,7 +82,7 @@ export default function DashboardPage() {
         </div>
         <div className="flex items-center gap-3">
           <Link
-            href={`/b/${business.businessId}`}
+            href={`/b/?id=${business.businessId}`}
             target="_blank"
             className="text-sm font-medium text-verified-700 hover:underline"
           >

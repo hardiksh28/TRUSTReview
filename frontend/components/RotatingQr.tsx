@@ -48,7 +48,7 @@ export function RotatingQr({ businessId }: { businessId: string }) {
   }, [tokenId]);
 
   const siteUrl = typeof window !== "undefined" ? window.location.origin : "";
-  const qrValue = tokenId ? `${siteUrl}/scan/${tokenId}` : "";
+  const qrValue = tokenId ? `${siteUrl}/scan/?token=${tokenId}` : "";
   const offset = CIRCUMFERENCE * (1 - progress);
 
   return (

@@ -1,32 +1,65 @@
-import { notFound } from "next/navigation";
+"use client";
+
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { RatingBar } from "@/components/RatingBar";
 import { ReviewCard } from "@/components/ReviewCard";
+import { api } from "@/lib/api";
 import type { ProfileResponse, ReviewsResponse } from "@/lib/types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
-
-async function getProfile(id: string): Promise<ProfileResponse | null> {
-  const res = await fetch(`${API_URL}/businesses/${id}`, { cache: "no-store" });
-  if (res.status === 404) return null;
-  if (!res.ok) throw new Error("Failed to load business profile");
-  return res.json();
+export default function TrustProfilePage() {
+  return (
+    <Suspense fallback={<CenteredMessage>Loading...</CenteredMessage>}>
+      <TrustProfileContent />
+    </Suspense>
+  );
 }
 
-async function getReviews(id: string): Promise<ReviewsResponse> {
-  const res = await fetch(`${API_URL}/businesses/${id}/reviews`, { cache: "no-store" });
-  if (!res.ok) throw new Error("Failed to load reviews");
-  return res.json();
-}
+function TrustProfileContent() {
+  const searchParams = useSearchParams();
+  const id = searchParams.get("id");
 
-export default async function TrustProfilePage({ params }: { params: { id: string } }) {
-  const profile = await getProfile(params.id);
-  if (!profile) notFound();
+  const [state, setState] = useState<
+    | { status: "loading" }
+    | { status: "not_found" }
+    | { status: "error" }
+    | { status: "ready"; profile: ProfileResponse; reviews: ReviewsResponse["reviews"] }
+  >({ status: "loading" });
 
-  const { reviews } = await getReviews(params.id);
+  useEffect(() => {
+    if (!id) {
+      setState({ status: "not_found" });
+      return;
+    }
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const [profile, reviewsRes] = await Promise.all([
+          api.get<ProfileResponse>(`/businesses/${id}`),
+          api.get<ReviewsResponse>(`/businesses/${id}/reviews`),
+        ]);
+        if (!cancelled) setState({ status: "ready", profile, reviews: reviewsRes.reviews });
+      } catch (err: any) {
+        if (cancelled) return;
+        if (err?.status === 404) setState({ status: "not_found" });
+        else setState({ status: "error" });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  if (state.status === "loading") return <CenteredMessage>Loading...</CenteredMessage>;
+  if (state.status === "not_found") return <CenteredMessage>Business not found.</CenteredMessage>;
+  if (state.status === "error") return <CenteredMessage>Could not load this Trust Profile.</CenteredMessage>;
 
   const { business, overall, subRatings, visitCount, reviewCount, conversionPct, summary } =
-    profile;
+    state.profile;
+  const reviews = state.reviews;
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-12 sm:py-16">
@@ -126,6 +159,14 @@ export default async function TrustProfilePage({ params }: { params: { id: strin
           </div>
         )}
       </section>
+    </main>
+  );
+}
+
+function CenteredMessage({ children }: { children: React.ReactNode }) {
+  return (
+    <main className="flex min-h-screen items-center justify-center px-6 text-center">
+      <p className="text-neutral-500">{children}</p>
     </main>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import { getAnonIdentity } from "@/lib/anon";
 import { RatingSlider } from "@/components/RatingSlider";
@@ -9,7 +9,16 @@ import { RatingSlider } from "@/components/RatingSlider";
 type Grant = { businessId: string; tokenId: string };
 
 export default function ReviewPage() {
-  const params = useParams<{ tokenId: string }>();
+  return (
+    <Suspense fallback={<CenteredMessage>Loading...</CenteredMessage>}>
+      <ReviewContent />
+    </Suspense>
+  );
+}
+
+function ReviewContent() {
+  const searchParams = useSearchParams();
+  const tokenId = searchParams.get("token") ?? "";
   const router = useRouter();
 
   const [grant, setGrant] = useState<Grant | null | undefined>(undefined); // undefined = checking
@@ -23,9 +32,13 @@ export default function ReviewPage() {
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
-    const raw = window.sessionStorage.getItem(`trustreview_grant_${params.tokenId}`);
+    if (!tokenId) {
+      setGrant(null);
+      return;
+    }
+    const raw = window.sessionStorage.getItem(`trustreview_grant_${tokenId}`);
     setGrant(raw ? JSON.parse(raw) : null);
-  }, [params.tokenId]);
+  }, [tokenId]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -89,7 +102,7 @@ export default function ReviewPage() {
         <h1 className="mt-6 text-2xl font-bold text-white">Thanks for your review</h1>
         <p className="mt-2 text-verified-50">It&apos;s live on the business&apos;s Trust Profile now.</p>
         <button
-          onClick={() => router.push(`/b/${grant.businessId}`)}
+          onClick={() => router.push(`/b/?id=${grant.businessId}`)}
           className="mt-8 inline-flex items-center justify-center rounded-xl bg-white px-6 py-3 text-sm font-semibold text-verified-700 shadow-sm transition hover:bg-verified-50"
         >
           View Trust Profile
