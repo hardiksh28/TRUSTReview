@@ -8,6 +8,7 @@ import { isSignedIn, signOut } from "@/lib/auth";
 import { RatingBar } from "@/components/RatingBar";
 import { RotatingQr } from "@/components/RotatingQr";
 import { FlaggedBadge, VerifiedBadge } from "@/components/VerifiedBadge";
+import { Squiggle } from "@/components/Squiggle";
 import type { ProfileResponse, PublicReview, ReviewsResponse } from "@/lib/types";
 
 type MyBusiness = { businessId: string; name: string; category: string; city: string };
@@ -74,79 +75,92 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-10">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <p className="text-sm text-neutral-500">{business.category} &middot; {business.city}</p>
-          <h1 className="text-2xl font-bold text-neutral-900">{business.name}</h1>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href={`/b/?id=${business.businessId}`}
-            target="_blank"
-            className="text-sm font-medium text-verified-700 hover:underline"
-          >
-            View public profile
-          </Link>
-          <button
-            onClick={async () => {
-              await signOut();
-              router.push("/");
-            }}
-            className="text-sm font-medium text-neutral-400 hover:text-neutral-600"
-          >
-            Sign out
-          </button>
-        </div>
-      </div>
+    <main className="relative overflow-hidden">
+      <div className="dot-grid pointer-events-none absolute inset-x-0 top-0 -z-10 h-72" />
+      <Squiggle
+        color="#F3B94D"
+        className="pointer-events-none absolute -left-10 top-4 hidden w-56 -rotate-6 opacity-25 sm:block"
+      />
+      <Squiggle
+        color="#14B8A6"
+        flip
+        className="pointer-events-none absolute -right-10 top-40 hidden w-56 rotate-6 opacity-20 sm:block"
+      />
 
-      <section className="card mb-6">
-        <RotatingQr businessId={business.businessId} />
-      </section>
-
-      {profile && (
-        <section className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
-          <Stat label="Verified visits" value={profile.visitCount} />
-          <Stat label="Reviews" value={profile.reviewCount} />
-          <Stat label="Conversion" value={`${profile.conversionPct}%`} />
-        </section>
-      )}
-
-      {profile && (
-        <section className="card mb-6 space-y-4">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
-            Rating breakdown
-          </h2>
-          <RatingBar label="Food" value={profile.subRatings.food} />
-          <RatingBar label="Service" value={profile.subRatings.service} />
-          <RatingBar label="Cleanliness" value={profile.subRatings.cleanliness} />
-          <RatingBar label="Value" value={profile.subRatings.value} />
-        </section>
-      )}
-
-      {profile?.summary && (
-        <section className="card mb-6">
-          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-neutral-500">
-            AI summary
-          </h2>
-          <p className="text-sm leading-relaxed text-neutral-700">{profile.summary.summary}</p>
-        </section>
-      )}
-
-      <section className="card">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-neutral-500">
-          Recent reviews
-        </h2>
-        {reviews.length === 0 ? (
-          <p className="py-8 text-center text-sm text-neutral-400">No reviews yet.</p>
-        ) : (
+      <div className="mx-auto max-w-3xl px-6 py-10">
+        <div className="mb-8 flex items-center justify-between">
           <div>
-            {reviews.map((review) => (
-              <OwnerReviewRow key={review.reviewId} review={review} onResponded={loadStats} />
-            ))}
+            <p className="text-sm text-neutral-500">{business.category} &middot; {business.city}</p>
+            <h1 className="text-2xl font-bold text-neutral-900">{business.name}</h1>
           </div>
+          <div className="flex items-center gap-3">
+            <Link
+              href={`/b/?id=${business.businessId}`}
+              target="_blank"
+              className="text-sm font-medium text-verified-700 hover:underline"
+            >
+              View public profile
+            </Link>
+            <button
+              onClick={async () => {
+                await signOut();
+                router.push("/");
+              }}
+              className="text-sm font-medium text-neutral-400 hover:text-neutral-600"
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
+
+        <section className="card-hover card mb-6">
+          <RotatingQr businessId={business.businessId} />
+        </section>
+
+        {profile && (
+          <section className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <Stat label="Verified visits" value={profile.visitCount} />
+            <Stat label="Reviews" value={profile.reviewCount} />
+            <Stat label="Conversion" value={`${profile.conversionPct}%`} />
+          </section>
         )}
-      </section>
+
+        {profile && (
+          <section className="card-hover card mb-6 space-y-4">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
+              Rating breakdown
+            </h2>
+            <RatingBar label="Food" value={profile.subRatings.food} />
+            <RatingBar label="Service" value={profile.subRatings.service} />
+            <RatingBar label="Cleanliness" value={profile.subRatings.cleanliness} />
+            <RatingBar label="Value" value={profile.subRatings.value} />
+          </section>
+        )}
+
+        {profile?.summary && (
+          <section className="card-hover card mb-6">
+            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+              AI summary
+            </h2>
+            <p className="text-sm leading-relaxed text-neutral-700">{profile.summary.summary}</p>
+          </section>
+        )}
+
+        <section className="card-hover card">
+          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+            Recent reviews
+          </h2>
+          {reviews.length === 0 ? (
+            <p className="py-8 text-center text-sm text-neutral-400">No reviews yet.</p>
+          ) : (
+            <div>
+              {reviews.map((review) => (
+                <OwnerReviewRow key={review.reviewId} review={review} onResponded={loadStats} />
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
     </main>
   );
 }

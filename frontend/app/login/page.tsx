@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { confirmSignUp, signIn, signUp } from "@/lib/auth";
+import { Squiggle } from "@/components/Squiggle";
 
 type Mode = "signin" | "signup" | "confirm";
 
@@ -62,7 +63,18 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-6 py-16">
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-16">
+      <div className="dot-grid pointer-events-none absolute inset-x-0 top-0 -z-10 h-full" />
+      <Squiggle
+        color="#F3B94D"
+        className="pointer-events-none absolute -left-12 top-8 hidden w-56 -rotate-6 opacity-20 sm:block"
+      />
+      <Squiggle
+        color="#14B8A6"
+        flip
+        className="pointer-events-none absolute -right-12 bottom-8 hidden w-56 rotate-6 opacity-20 sm:block"
+      />
+
       <div className="w-full max-w-sm">
         <Link href="/" className="mb-8 block text-center text-lg font-bold text-neutral-900">
           TrustReview
