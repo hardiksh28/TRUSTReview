@@ -1,28 +1,26 @@
-import posthog from "posthog-js";
+import mixpanel from "mixpanel-browser";
 
-const KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY;
-const HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com";
+const TOKEN = process.env.NEXT_PUBLIC_MIXPANEL_TOKEN;
 
 let initialized = false;
 
 export function initAnalytics() {
-  if (initialized || !KEY || typeof window === "undefined") return;
-  posthog.init(KEY, {
-    api_host: HOST,
-    person_profiles: "identified_only",
-    capture_pageview: true,
-    capture_pageleave: true,
+  if (initialized || !TOKEN || typeof window === "undefined") return;
+  mixpanel.init(TOKEN, {
+    track_pageview: true,
+    persistence: "localStorage",
   });
   initialized = true;
 }
 
-/** No-ops safely if analytics was never initialized (no key set). */
+/** No-ops safely if analytics was never initialized (no token set). */
 export function track(event: string, properties?: Record<string, unknown>) {
   if (!initialized) return;
-  posthog.capture(event, properties);
+  mixpanel.track(event, properties);
 }
 
 export function identifyOwner(ownerId: string, properties?: Record<string, unknown>) {
   if (!initialized) return;
-  posthog.identify(ownerId, properties);
+  mixpanel.identify(ownerId);
+  if (properties) mixpanel.people.set(properties);
 }
