@@ -6,6 +6,7 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { isAdmin, isSignedIn } from "@/lib/auth";
 import { Squiggle } from "@/components/Squiggle";
+import { Logo } from "@/components/Logo";
 
 type FlaggedReview = {
   reviewId: string;
@@ -80,11 +81,8 @@ export default function AdminPage() {
       />
 
       <div className="mx-auto max-w-3xl px-6 py-10">
-        <Link
-          href="/"
-          className="mb-6 inline-block text-sm font-bold text-neutral-900 hover:text-verified-700"
-        >
-          &larr; TrustReview
+        <Link href="/" className="mb-6 inline-flex opacity-90 transition-opacity hover:opacity-100">
+          <Logo markClassName="h-6 w-6" textClassName="text-base font-bold tracking-tight text-neutral-900" />
         </Link>
 
         <h1 className="mb-1 text-2xl font-bold text-neutral-900">Flagged reviews</h1>

@@ -9,6 +9,7 @@ import { RatingBar } from "@/components/RatingBar";
 import { RotatingQr } from "@/components/RotatingQr";
 import { FlaggedBadge, VerifiedBadge } from "@/components/VerifiedBadge";
 import { Squiggle } from "@/components/Squiggle";
+import { Logo } from "@/components/Logo";
 import type { ProfileResponse, PublicReview, ReviewsResponse } from "@/lib/types";
 
 type MyBusiness = { businessId: string; name: string; category: string; city: string };
@@ -88,11 +89,8 @@ export default function DashboardPage() {
       />
 
       <div className="mx-auto max-w-3xl px-6 py-10">
-        <Link
-          href="/"
-          className="mb-6 inline-block text-sm font-bold text-neutral-900 hover:text-verified-700"
-        >
-          &larr; TrustReview
+        <Link href="/" className="mb-6 inline-flex opacity-90 transition-opacity hover:opacity-100">
+          <Logo markClassName="h-6 w-6" textClassName="text-base font-bold tracking-tight text-neutral-900" />
         </Link>
 
         <div className="mb-8 flex items-center justify-between">

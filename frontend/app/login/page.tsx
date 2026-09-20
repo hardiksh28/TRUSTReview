@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { confirmSignUp, signIn, signUp } from "@/lib/auth";
 import { Squiggle } from "@/components/Squiggle";
+import { Logo } from "@/components/Logo";
 
 type Mode = "signin" | "signup" | "confirm";
 
@@ -76,8 +77,8 @@ export default function LoginPage() {
       />
 
       <div className="w-full max-w-sm">
-        <Link href="/" className="mb-8 block text-center text-lg font-bold text-neutral-900">
-          TrustReview
+        <Link href="/" className="mb-8 flex justify-center">
+          <Logo />
         </Link>
 
         <div className="card">

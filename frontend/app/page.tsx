@@ -4,6 +4,7 @@ import { HeroPhones } from "@/components/HeroPhones";
 import { HowItWorks } from "@/components/HowItWorks";
 import { Faq } from "@/components/Faq";
 import { Squiggle } from "@/components/Squiggle";
+import { Logo, LogoMark } from "@/components/Logo";
 
 const DEMO_BUSINESS_ID = process.env.NEXT_PUBLIC_DEMO_BUSINESS_ID ?? "biz_demo001";
 
@@ -17,7 +18,7 @@ export default function LandingPage() {
     <main className="overflow-x-hidden">
       <nav className="sticky top-0 z-20 border-b border-neutral-200/60 bg-white/70 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <span className="text-lg font-bold tracking-tight text-neutral-900">TrustReview</span>
+          <Logo />
           <div className="flex items-center gap-3">
             <Link
               href="/login"
@@ -122,7 +123,7 @@ export default function LandingPage() {
         </div>
 
         <div className="mx-auto mt-10 flex max-w-2xl flex-col items-center gap-2 text-center">
-          <p className="text-sm font-semibold text-neutral-900">TrustReview</p>
+          <LogoMark className="h-8 w-8" />
           <p className="text-sm text-neutral-400">Proof-of-visit reviews for local businesses.</p>
           <div className="mt-2 flex items-center gap-4 text-sm text-neutral-400">
             <Link href="/contact" className="hover:text-neutral-700">
