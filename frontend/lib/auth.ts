@@ -1,7 +1,9 @@
 import {
+  confirmResetPassword as amplifyConfirmResetPassword,
   confirmSignUp as amplifyConfirmSignUp,
   fetchAuthSession,
   getCurrentUser,
+  resetPassword as amplifyResetPassword,
   signIn as amplifySignIn,
   signOut as amplifySignOut,
   signUp as amplifySignUp,
@@ -39,6 +41,16 @@ export async function signIn(email: string, password: string) {
     }
     throw err;
   }
+}
+
+export async function requestPasswordReset(email: string) {
+  configureAmplify();
+  return amplifyResetPassword({ username: email });
+}
+
+export async function confirmPasswordReset(email: string, code: string, newPassword: string) {
+  configureAmplify();
+  return amplifyConfirmResetPassword({ username: email, confirmationCode: code, newPassword });
 }
 
 export async function signOut() {

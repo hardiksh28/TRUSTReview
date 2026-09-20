@@ -143,12 +143,18 @@ export default function LandingPage() {
         <div className="mx-auto mt-10 flex max-w-2xl flex-col items-center gap-2 text-center">
           <LogoMark className="h-8 w-8" />
           <p className="text-sm text-neutral-400">Proof-of-visit reviews for local businesses.</p>
-          <div className="mt-2 flex items-center gap-4 text-sm text-neutral-400">
+          <div className="mt-2 flex flex-wrap items-center justify-center gap-4 text-sm text-neutral-400">
             <Link href="/contact" className="hover:text-neutral-700">
               Contact
             </Link>
             <Link href="#pricing" className="hover:text-neutral-700">
               Pricing
+            </Link>
+            <Link href="/terms" className="hover:text-neutral-700">
+              Terms
+            </Link>
+            <Link href="/privacy" className="hover:text-neutral-700">
+              Privacy
             </Link>
           </div>
         </div>
