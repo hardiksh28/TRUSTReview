@@ -14,6 +14,7 @@ export const TABLES = {
   TOKENS: process.env.TOKENS_TABLE ?? "Tokens",
   REVIEWS: process.env.REVIEWS_TABLE ?? "Reviews",
   SUMMARIES: process.env.SUMMARIES_TABLE ?? "Summaries",
+  CONTACT_MESSAGES: process.env.CONTACT_MESSAGES_TABLE ?? "ContactMessages",
 };
 
 export const REVIEWS_GSI = "businessId-createdAt-index";

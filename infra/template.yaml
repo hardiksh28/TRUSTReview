@@ -39,6 +39,7 @@ Globals:
         TOKENS_TABLE: !Ref TokensTable
         REVIEWS_TABLE: !Ref ReviewsTable
         SUMMARIES_TABLE: !Ref SummariesTable
+        CONTACT_MESSAGES_TABLE: !Ref ContactMessagesTable
         EVENT_BUS_NAME: !Ref TrustReviewEventBus
         ALLOWED_ORIGIN: !Ref AllowedOrigin
 
@@ -123,6 +124,17 @@ Resources:
           AttributeType: S
       KeySchema:
         - AttributeName: businessId
+          KeyType: HASH
+
+  ContactMessagesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: messageId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: messageId
           KeyType: HASH
 
   # ---------------------------------------------------------------------
@@ -229,6 +241,30 @@ Resources:
         Sourcemap: false
         EntryPoints:
           - src/handlers/health.ts
+
+  ContactFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: contact.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ContactMessagesTable
+      Events:
+        Contact:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref TrustReviewApi
+            Path: /contact
+            Method: POST
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: "node22"
+        Sourcemap: false
+        EntryPoints:
+          - src/handlers/contact.ts
 
   CreateBusinessFunction:
     Type: AWS::Serverless::Function

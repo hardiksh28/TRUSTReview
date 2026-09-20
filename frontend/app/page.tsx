@@ -2,6 +2,7 @@ import Link from "next/link";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { HeroPhones } from "@/components/HeroPhones";
 import { HowItWorks } from "@/components/HowItWorks";
+import { Faq } from "@/components/Faq";
 
 const DEMO_BUSINESS_ID = process.env.NEXT_PUBLIC_DEMO_BUSINESS_ID ?? "biz_demo001";
 
@@ -57,9 +58,45 @@ export default function LandingPage() {
 
       <HowItWorks />
 
-      <footer className="border-t border-neutral-100 px-6 py-10 text-center">
-        <p className="text-sm font-semibold text-neutral-900">TrustReview</p>
-        <p className="mt-1 text-sm text-neutral-400">Proof-of-visit reviews for local businesses.</p>
+      <Faq />
+
+      <footer className="border-t border-neutral-100 px-6 py-14">
+        <div className="mx-auto max-w-2xl text-center">
+          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-verified-50 text-sm font-bold text-verified-700">
+            H
+          </div>
+          <p className="mt-4 text-base font-semibold text-neutral-900">
+            Hi, I&apos;m Hardik — the creator of TrustReview.
+          </p>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-neutral-500">
+            Built solo over a weekend for the Bharat Builds Tour (WeMakeDevs &times; AWS)
+            hackathon. Questions, feedback, or want to bring this to your business?
+          </p>
+          <Link
+            href="/contact"
+            className="mt-4 inline-flex items-center justify-center rounded-xl border border-neutral-300 bg-white px-5 py-2.5 text-sm font-semibold text-neutral-800 transition hover:bg-neutral-50"
+          >
+            Get in touch
+          </Link>
+        </div>
+
+        <div className="mx-auto mt-12 flex max-w-2xl flex-col items-center gap-2 border-t border-neutral-100 pt-8 text-center">
+          <p className="text-sm font-semibold text-neutral-900">TrustReview</p>
+          <p className="text-sm text-neutral-400">Proof-of-visit reviews for local businesses.</p>
+          <div className="mt-2 flex items-center gap-4 text-sm text-neutral-400">
+            <Link href="/contact" className="hover:text-neutral-700">
+              Contact
+            </Link>
+            <a
+              href="https://github.com/hardiksh28/TRUSTReview"
+              target="_blank"
+              rel="noreferrer"
+              className="hover:text-neutral-700"
+            >
+              Source on GitHub
+            </a>
+          </div>
+        </div>
       </footer>
     </main>
   );
