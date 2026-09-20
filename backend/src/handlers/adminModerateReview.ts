@@ -1,7 +1,7 @@
 import type { APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyHandlerV2 } from "aws-lambda";
 import { UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, TABLES } from "../lib/dynamo";
-import { badRequest, forbidden, ok, serverError, unauthorized } from "../lib/response";
+import { badRequest, forbidden, ok, parseBody, serverError, unauthorized } from "../lib/response";
 import { getUserSub, isInGroup } from "../lib/auth";
 
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
@@ -13,15 +13,17 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     const reviewId = event.pathParameters?.id;
     if (!reviewId) return badRequest("reviewId is required");
 
-    const body = event.body ? JSON.parse(event.body) : {};
+    const body = parseBody(event);
     if (typeof body.hidden !== "boolean") return badRequest("hidden must be a boolean");
 
     await ddb.send(
       new UpdateCommand({
         TableName: TABLES.REVIEWS,
         Key: { reviewId },
-        UpdateExpression: "SET hidden = :hidden",
+        // "hidden" is a reserved word in DynamoDB's expression grammar.
+        UpdateExpression: "SET #hidden = :hidden",
         ConditionExpression: "attribute_exists(reviewId)",
+        ExpressionAttributeNames: { "#hidden": "hidden" },
         ExpressionAttributeValues: { ":hidden": body.hidden },
       })
     );

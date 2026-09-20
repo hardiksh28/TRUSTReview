@@ -4,13 +4,13 @@ import { GetCommand, PutCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { PutEventsCommand } from "@aws-sdk/client-eventbridge";
 import { ddb, TABLES } from "../lib/dynamo";
 import { eventBridge, EVENT_BUS_NAME, EVENT_SOURCE } from "../lib/events";
-import { badRequest, conflict, created, notFound, serverError } from "../lib/response";
+import { badRequest, conflict, created, notFound, parseBody, serverError } from "../lib/response";
 import { getUserSub, getUserName } from "../lib/auth";
 import { isValidRatings, overallOf } from "../lib/ratings";
 
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   try {
-    const body = event.body ? JSON.parse(event.body) : {};
+    const body = parseBody(event);
     const { tokenId, businessId, ratings, text, anonId, anonSince } = body;
 
     if (typeof tokenId !== "string" || !tokenId) return badRequest("tokenId is required");
@@ -84,16 +84,27 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       new UpdateCommand({
         TableName: TABLES.BUSINESSES,
         Key: { businessId },
+        // "sum" and "value" are reserved words in DynamoDB's expression
+        // grammar, so every nested attribute name here is aliased rather
+        // than risk relying on which ones happen to be safe unescaped.
         UpdateExpression:
           "SET reviewCount = if_not_exists(reviewCount, :zero) + :one, " +
-          "ratings.food.sum = if_not_exists(ratings.food.sum, :zero) + :food, " +
-          "ratings.food.n = if_not_exists(ratings.food.n, :zero) + :one, " +
-          "ratings.service.sum = if_not_exists(ratings.service.sum, :zero) + :service, " +
-          "ratings.service.n = if_not_exists(ratings.service.n, :zero) + :one, " +
-          "ratings.cleanliness.sum = if_not_exists(ratings.cleanliness.sum, :zero) + :cleanliness, " +
-          "ratings.cleanliness.n = if_not_exists(ratings.cleanliness.n, :zero) + :one, " +
-          "ratings.value.sum = if_not_exists(ratings.value.sum, :zero) + :value, " +
-          "ratings.value.n = if_not_exists(ratings.value.n, :zero) + :one",
+          "ratings.#food.#s = if_not_exists(ratings.#food.#s, :zero) + :food, " +
+          "ratings.#food.#n = if_not_exists(ratings.#food.#n, :zero) + :one, " +
+          "ratings.#service.#s = if_not_exists(ratings.#service.#s, :zero) + :service, " +
+          "ratings.#service.#n = if_not_exists(ratings.#service.#n, :zero) + :one, " +
+          "ratings.#cleanliness.#s = if_not_exists(ratings.#cleanliness.#s, :zero) + :cleanliness, " +
+          "ratings.#cleanliness.#n = if_not_exists(ratings.#cleanliness.#n, :zero) + :one, " +
+          "ratings.#value.#s = if_not_exists(ratings.#value.#s, :zero) + :value, " +
+          "ratings.#value.#n = if_not_exists(ratings.#value.#n, :zero) + :one",
+        ExpressionAttributeNames: {
+          "#s": "sum",
+          "#n": "n",
+          "#food": "food",
+          "#service": "service",
+          "#cleanliness": "cleanliness",
+          "#value": "value",
+        },
         ExpressionAttributeValues: {
           ":zero": 0,
           ":one": 1,

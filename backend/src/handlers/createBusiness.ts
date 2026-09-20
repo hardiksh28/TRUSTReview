@@ -2,7 +2,7 @@ import type { APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyHandlerV2 
 import { v4 as uuid } from "uuid";
 import { PutCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, TABLES } from "../lib/dynamo";
-import { badRequest, created, serverError, unauthorized } from "../lib/response";
+import { badRequest, created, parseBody, serverError, unauthorized } from "../lib/response";
 import { getUserSub } from "../lib/auth";
 import { EMPTY_RATING_SUMS } from "../lib/ratings";
 
@@ -12,7 +12,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     const ownerId = getUserSub(ev);
     if (!ownerId) return unauthorized();
 
-    const body = event.body ? JSON.parse(event.body) : {};
+    const body = parseBody(event);
     const name = typeof body.name === "string" ? body.name.trim() : "";
     const category = typeof body.category === "string" ? body.category.trim() : "";
     const city = typeof body.city === "string" ? body.city.trim() : "";

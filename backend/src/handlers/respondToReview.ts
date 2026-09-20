@@ -1,7 +1,7 @@
 import type { APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyHandlerV2 } from "aws-lambda";
 import { GetCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, TABLES } from "../lib/dynamo";
-import { badRequest, conflict, forbidden, notFound, ok, serverError, unauthorized } from "../lib/response";
+import { badRequest, conflict, forbidden, notFound, ok, parseBody, serverError, unauthorized } from "../lib/response";
 import { getUserSub } from "../lib/auth";
 
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
@@ -13,7 +13,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     const reviewId = event.pathParameters?.id;
     if (!reviewId) return badRequest("reviewId is required");
 
-    const body = event.body ? JSON.parse(event.body) : {};
+    const body = parseBody(event);
     const text = typeof body.text === "string" ? body.text.trim() : "";
     if (!text) return badRequest("text is required");
     if (text.length > 1000) return badRequest("response too long");

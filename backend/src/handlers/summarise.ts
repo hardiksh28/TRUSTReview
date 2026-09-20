@@ -9,8 +9,8 @@ const bedrock = new BedrockRuntimeClient({ region: process.env.BEDROCK_REGION ||
 
 // If your account requires an inference profile instead of the bare model
 // id (common for Claude 3.5 on-demand access), set BEDROCK_MODEL_ID to
-// something like "us.anthropic.claude-3-5-haiku-20241022-v1:0".
-const MODEL_ID = process.env.BEDROCK_MODEL_ID || "anthropic.claude-3-5-haiku-20241022-v1:0";
+// something like "us.anthropic.claude-haiku-4-5-20251001-v1:0".
+const MODEL_ID = process.env.BEDROCK_MODEL_ID || "anthropic.claude-haiku-4-5-20251001-v1:0";
 
 const SYSTEM_PROMPT =
   "You analyse customer reviews for a local business. Respond with ONLY a JSON object, no preamble, no markdown fences.";

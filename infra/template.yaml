@@ -20,10 +20,12 @@ Parameters:
       region than the rest of the stack.
   BedrockModelId:
     Type: String
-    Default: anthropic.claude-3-5-haiku-20241022-v1:0
+    Default: anthropic.claude-haiku-4-5-20251001-v1:0
     Description: >
-      Bedrock model id. If your account requires an inference profile for
-      on-demand throughput, use e.g. us.anthropic.claude-3-5-haiku-20241022-v1:0.
+      Bedrock model id. The original plan's claude-3-5-haiku-20241022 snapshot
+      has since been retired; claude-haiku-4-5 is the current cheap/fast
+      Haiku model. If your account requires an inference profile for
+      on-demand throughput, use e.g. us.anthropic.claude-haiku-4-5-20251001-v1:0.
 
 Globals:
   Function:

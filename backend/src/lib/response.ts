@@ -1,4 +1,17 @@
-import type { APIGatewayProxyResultV2 } from "aws-lambda";
+import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
+
+/**
+ * API Gateway HTTP API base64-encodes the body for some request Content-Types
+ * (e.g. clients that omit Content-Type or send a non-JSON one), signalled via
+ * isBase64Encoded. Parsing event.body directly then throws on valid requests.
+ */
+export function parseBody(event: Pick<APIGatewayProxyEventV2, "body" | "isBase64Encoded">): any {
+  if (!event.body) return {};
+  const raw = event.isBase64Encoded
+    ? Buffer.from(event.body, "base64").toString("utf-8")
+    : event.body;
+  return JSON.parse(raw);
+}
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": process.env.ALLOWED_ORIGIN ?? "*",

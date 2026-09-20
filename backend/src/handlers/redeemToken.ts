@@ -1,7 +1,7 @@
 import type { APIGatewayProxyHandlerV2 } from "aws-lambda";
 import { GetCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, TABLES } from "../lib/dynamo";
-import { badRequest, conflict, notFound, ok, serverError } from "../lib/response";
+import { badRequest, conflict, notFound, ok, parseBody, serverError } from "../lib/response";
 
 /**
  * The critical endpoint. A token can be redeemed exactly once.
@@ -13,7 +13,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     const tokenId = event.pathParameters?.tokenId;
     if (!tokenId) return badRequest("tokenId is required");
 
-    const body = event.body ? JSON.parse(event.body) : {};
+    const body = parseBody(event);
     const who = typeof body.who === "string" ? body.who : "anon";
     const nowSeconds = Math.floor(Date.now() / 1000);
 
