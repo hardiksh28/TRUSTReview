@@ -18,41 +18,61 @@ honest reviews loses to a ghost kitchen with 400 bought ones. TrustReview gives 
 receipt for every real customer: a review can only exist if it is tied to a single-use QR code
 that was redeemed at the counter and never redeemed again.
 
+## Tech stack
+
+**Frontend** — Next.js 14 (App Router), TypeScript, static export (`output: "export"`), Tailwind
+CSS, `aws-amplify/auth` v6 (Cognito client), `qrcode.react`.
+
+**Backend** — Node.js 22 (arm64), TypeScript, bundled per-function with esbuild via SAM's
+`BuildMethod: esbuild`, AWS SDK v3 (`@aws-sdk/client-dynamodb`, `@aws-sdk/lib-dynamodb`,
+`@aws-sdk/client-eventbridge`, `@aws-sdk/client-bedrock-runtime`).
+
+**Infra / hosting** — AWS SAM (infra-as-code for every backend resource), AWS Amplify Hosting
+(static frontend, git-push-to-deploy), API Gateway HTTP API, Lambda, DynamoDB, Cognito,
+EventBridge, Bedrock (Claude Haiku 4.5).
+
 ## Architecture
 
 ```
-Customer phone            Amazon CloudFront /            Business laptop
-  (scans QR)  ─────────►  AWS Amplify Hosting       ◄───── (shows rotating QR)
-                           Next.js 14 App Router
-                                    │  HTTPS (Cognito JWT)
-                                    ▼
-                           Amazon API Gateway
-                              (HTTP API)
-                                    │
-        ┌───────────┬──────────────┼──────────────┬────────────┐
-        ▼            ▼              ▼              ▼            ▼
-   issueToken   redeemToken    submitReview    getProfile   respondToReview
-   (Lambda)      (Lambda)       (Lambda)        (Lambda)       (Lambda)
-        │            │              │              │            │
-        └────────────┴──────┬───────┴──────────────┴────────────┘
-                             ▼
-                   Amazon DynamoDB              Amazon Cognito
-                   Businesses                    User Pool
-                   Tokens (TTL!)                 (owners + admins group)
-                   Reviews
-                   Summaries (AI cache)
-                             │ on new review (PutEvents)
-                             ▼
-                   Amazon EventBridge
-                             │
-                ┌────────────┴─────────────┐
-                ▼                           ▼
-         riskScorer Lambda           summarise Lambda
-         (4 boolean rules)           (→ Amazon Bedrock,
-                                       cached in DynamoDB)
+Browser (Next.js 14 static export, served by AWS Amplify Hosting)
+        │
+        │  HTTPS (Cognito JWT on owner/admin routes)
+        ▼
+Amazon API Gateway (HTTP API)
+        │
+        ▼
+15 Lambda functions (Node.js 22, arm64) — one per API operation, e.g.
+  listBusinesses · createBusiness · getMyBusiness · getProfile · getReviews
+  issueToken · redeemToken · submitReview · respondToReview
+  adminListFlagged · adminModerateReview · contact · health
+        │
+  ┌─────┴───────────────────────────────┐
+  ▼                                      ▼
+Amazon DynamoDB (5 tables)        Amazon EventBridge (async, off the request path)
+  Businesses (+ optional location)       │  PutEvents("ReviewCreated") from submitReview
+  Tokens (TTL, + redeem distance)  ┌─────┴──────────┐
+  Reviews (2 GSIs)                 ▼                 ▼
+  Summaries (AI cache)       riskScorer Lambda   summarise Lambda
+  ContactMessages            (6 deterministic    (→ Amazon Bedrock
+                               signals)            Claude Haiku 4.5,
+                                                    cached in DynamoDB)
 
-   Amazon CloudWatch Logs across every Lambda
+Amazon Cognito — User Pool (business owners) + `admins` Group (moderators)
+Amazon CloudWatch Logs — across every Lambda
 ```
+
+**Request flow (the core guarantee):**
+1. The dashboard calls `issueToken` every 60s → writes a `Tokens` row with `used: false`.
+2. A customer scans → `redeemToken` runs a single **conditional DynamoDB `UpdateItem`**
+   (`used = :false AND expiresAt > :now`) — the actual single-use enforcement, atomic at the
+   database level, not application logic.
+3. `submitReview` re-checks the token was redeemed, writes the review, bumps the business's rating
+   aggregates in one `UpdateExpression`, then fires a `ReviewCreated` event onto the custom
+   EventBridge bus.
+4. `riskScorer` and `summarise` react to that event independently and asynchronously — neither adds
+   latency to the customer's request.
+5. `/admin` routes (Cognito `admins` group) let a moderator hide/unhide a flagged review — nothing
+   is ever auto-hidden.
 
 ### AWS services used (and why)
 
@@ -65,7 +85,7 @@ Customer phone            Amazon CloudFront /            Business laptop
 | **DynamoDB conditional writes** | Single-use token enforcement is atomic at the DB layer — two simultaneous scans of the same token cannot both succeed. This is the entire product. |
 | **Cognito** | Managed auth for business owners (and an `admins` group for moderation) — no password handling in application code. |
 | **EventBridge** | Risk scoring and AI summarisation happen off the request path, so submitting a review stays fast. |
-| **Bedrock** | Managed LLM inference (Claude 3.5 Haiku) for the review summary card — no model hosting, IAM-scoped access. |
+| **Bedrock** | Managed LLM inference (Claude Haiku 4.5) for the review summary card — no model hosting, IAM-scoped access. |
 | **CloudWatch** | Logs and metrics for every Lambda. |
 
 ## Repository layout
@@ -73,23 +93,29 @@ Customer phone            Amazon CloudFront /            Business laptop
 ```
 infra/      AWS SAM template — every AWS resource in one file
 backend/    TypeScript Lambda handlers + the seed script
-frontend/   Next.js 14 App Router site (all 7 screens)
+frontend/   Next.js 14 App Router site (landing, login, dashboard, admin, Trust Profile,
+            scan, review, contact, browse)
 ```
 
 ## Data model (DynamoDB)
 
-Four on-demand tables, deliberately not single-table design:
+Five on-demand tables, deliberately not single-table design:
 
 - **Businesses** — `PK businessId`. Running rating sums (`{sum, n}` per axis) so averages are O(1)
-  to read. GSI `ownerId-index` resolves "my business" after a Cognito owner logs in.
+  to read. GSI `ownerId-index` resolves "my business" after a Cognito owner logs in. An optional
+  `location: {lat, lng}` is captured once at setup via browser geolocation — it powers the
+  `LOCATION_MISMATCH` risk signal and nothing else; a business without one simply never gets that
+  signal.
 - **Tokens** — `PK tokenId`. `expiresAt` is a DynamoDB TTL attribute (epoch seconds), so expired
   tokens are deleted by the database itself. QR codes rotate every 60s for display, but each
   issued token stays redeemable for 60 minutes so a customer who scans and then takes a few
   minutes to write a review never gets locked out — while a screenshotted/posted token still dies
-  within the hour and can only ever be spent once.
-- **Reviews** — `PK reviewId`. GSI `businessId-createdAt-index` for the newest-first public feed,
-  GSI `authorId-createdAt-index` for the RAPID_POSTING risk rule.
+  within the hour and can only ever be spent once. `redeemDistanceMeters` is set at redeem time
+  (best-effort) when both the business's location and the scanner's browser geolocation are known.
+- **Reviews** — `PK reviewId`. GSI `businessId-createdAt-index` for the newest-first public feed
+  and the `BUSINESS_BURST` risk rule, GSI `authorId-createdAt-index` for the `RAPID_POSTING` rule.
 - **Summaries** — `PK businessId`. Cached Bedrock output.
+- **ContactMessages** — `PK messageId`. Submissions from the public Contact page.
 
 ## The core guarantee
 
@@ -105,9 +131,9 @@ the code was already used or has expired (`backend/src/handlers/redeemToken.ts`)
 protects review submission: a token can produce at most one review, enforced by a second
 conditional update on a `reviewSubmitted` flag (`backend/src/handlers/submitReview.ts`).
 
-## Risk signals (F8) — deterministic, not AI
+## Risk signals — deterministic, not AI
 
-Four plain boolean rules, each worth points, capped at 100. Two or more signals firing shows a
+Six plain boolean rules, each worth points, capped at 100. Two or more signals firing shows a
 ⚠ **Flagged** badge on the business dashboard and in the admin panel — **the review is never
 auto-hidden**. A human (the platform admin) decides.
 
@@ -117,17 +143,25 @@ auto-hidden**. A human (the platform admin) decides.
 | `RAPID_POSTING` | Same reviewer has > 3 reviews in the last 5 minutes | 35 |
 | `DUPLICATE_TEXT` | Review text is ≥ 85% trigram-similar to another review for the business | 40 |
 | `STALE_TOKEN` | Token was redeemed > 24h after it was issued | 20 |
+| `LOCATION_MISMATCH` | Scanner's browser geolocation is > 500m from the business's registered location | 25 |
+| `BUSINESS_BURST` | The business received 5+ verified reviews within a 15-minute window | 30 |
+
+`LOCATION_MISMATCH` only evaluates when both the business registered a location *and* the customer
+granted geolocation — silently skipped otherwise, so it never penalizes anyone who didn't opt in.
+`BUSINESS_BURST` catches an owner (or friends) cycling through their own rotating code to farm
+reviews, since token-issuance rate alone is meaningless — the QR reissues every 60s whether or not
+anyone scans it, so review *velocity* is the real signal.
 
 Customers review anonymously (F6), so "account age" for `NEW_ACCOUNT` is the age of a per-browser
 identity persisted in `localStorage` (`frontend/lib/anon.ts`), sent with the review and trusted the
 same way the rest of the risk model is: as a signal to a human, not a verdict.
 
-## AI summary (F7)
+## AI summary
 
-`backend/src/handlers/summarise.ts` calls Bedrock with the exact prompt from the build plan and
-caches the result in the `Summaries` table. **The Bedrock call is wrapped in try/catch with a
-hardcoded fallback** — if Bedrock throttles, the model needs an inference profile, or the region is
-wrong, the Trust Profile still renders.
+`backend/src/handlers/summarise.ts` calls Bedrock (Claude Haiku 4.5) and caches the result in the
+`Summaries` table. **The Bedrock call is wrapped in try/catch with a hardcoded fallback** — if
+Bedrock throttles, the model needs an inference profile, or the region is wrong, the Trust Profile
+still renders.
 
 Bedrock is not enabled in every region (notably not reliably in `ap-south-1`), so the rest of the
 stack can deploy in one region while `summarise.ts` calls Bedrock in another — controlled
@@ -236,12 +270,13 @@ npm run dev
 
 | Method | Path | Auth | Behaviour |
 |---|---|---|---|
-| POST | `/businesses` | Owner | Create a business. Returns `businessId`. |
+| GET | `/businesses` | Public | List every business (name, category, rating, review count) — powers the `/browse` directory. |
+| POST | `/businesses` | Owner | Create a business. Accepts optional `lat`/`lng`. Returns `businessId`. |
 | GET | `/businesses/mine` | Owner | Resolve the signed-in owner's business (dashboard glue, not in the original spec table). |
 | GET | `/businesses/{id}` | Public | Trust Profile payload: business + averages + conversion % + cached AI summary. |
 | GET | `/businesses/{id}/reviews` | Public | Reviews newest-first. Excludes hidden. |
 | POST | `/businesses/{id}/tokens` | Owner | Issue a fresh token. Dashboard calls this every 60s. |
-| POST | `/tokens/{tokenId}/redeem` | Public | The critical endpoint — single-use, conditional write, 409 on reuse/expiry. |
+| POST | `/tokens/{tokenId}/redeem` | Public | The critical endpoint — single-use, conditional write, 409 on reuse/expiry. Accepts optional `lat`/`lng` for the `LOCATION_MISMATCH` signal. |
 | POST | `/reviews` | Public | Body includes `tokenId`. Server re-verifies the token was redeemed for this business and claims it for exactly one review. |
 | POST | `/reviews/{id}/response` | Owner | One reply per review. Rejects if a response already exists. |
 | GET | `/admin/flagged` | Admin | Reviews with `riskScore >= 50`. |
@@ -249,11 +284,12 @@ npm run dev
 
 ## What's deliberately not built
 
-Per the build plan's scope: categories, maps, geolocation, semantic search, filters, sentiment pie
-charts, trend graphs, notifications, follows, photos, payments, loyalty, a mobile app. If time ran
-out, this is also the cut order: admin panel → owner replies → risk signals → Bedrock summary →
-dashboard polish. The single-use token, the rejection screen, the Trust Profile, and the seed data
-were never on the table to cut.
+Per the build plan's scope: categories, maps, semantic search, filters, sentiment pie charts, trend
+graphs, notifications, follows, photos, payments, loyalty, a mobile app. (Geolocation itself *is*
+now used, but only narrowly — as an opt-in soft fraud signal, not a map or location-based search.)
+If time ran out, this is also the cut order: admin panel → owner replies → risk signals → Bedrock
+summary → dashboard polish. The single-use token, the rejection screen, the Trust Profile, and the
+seed data were never on the table to cut.
 
 ## Known limitations
 
