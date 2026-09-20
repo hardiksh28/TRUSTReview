@@ -15,10 +15,14 @@ import type { ProfileResponse, PublicReview, ReviewsResponse } from "@/lib/types
 
 type MyBusiness = { businessId: string; name: string; category: string; city: string };
 
+const SELECTED_KEY = "trustreview_selected_business";
+
 export default function DashboardPage() {
   const router = useRouter();
   const [checkingAuth, setCheckingAuth] = useState(true);
-  const [business, setBusiness] = useState<MyBusiness | null | undefined>(undefined); // undefined = loading
+  const [businesses, setBusinesses] = useState<MyBusiness[] | undefined>(undefined); // undefined = loading
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [addingLocation, setAddingLocation] = useState(false);
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
   const [reviews, setReviews] = useState<PublicReview[]>([]);
 
@@ -33,47 +37,64 @@ export default function DashboardPage() {
     })();
   }, [router]);
 
-  const loadBusiness = useCallback(async () => {
+  const loadBusinesses = useCallback(async () => {
     try {
-      const res = await api.get<{ business: MyBusiness }>("/businesses/mine", true);
-      setBusiness(res.business);
+      const res = await api.get<{ businesses: MyBusiness[] }>("/businesses/mine", true);
+      setBusinesses(res.businesses);
+      setSelectedId((prev) => {
+        if (prev && res.businesses.some((b) => b.businessId === prev)) return prev;
+        const stored = window.localStorage.getItem(SELECTED_KEY);
+        if (stored && res.businesses.some((b) => b.businessId === stored)) return stored;
+        return res.businesses[0]?.businessId ?? null;
+      });
     } catch (err) {
-      if (err instanceof ApiError && err.status === 404) {
-        setBusiness(null);
-      } else {
-        setBusiness(null);
-      }
+      if (!(err instanceof ApiError)) console.error(err);
+      setBusinesses([]);
     }
   }, []);
 
   useEffect(() => {
-    if (!checkingAuth) loadBusiness();
-  }, [checkingAuth, loadBusiness]);
+    if (!checkingAuth) loadBusinesses();
+  }, [checkingAuth, loadBusinesses]);
+
+  useEffect(() => {
+    if (selectedId) window.localStorage.setItem(SELECTED_KEY, selectedId);
+  }, [selectedId]);
+
+  const business = businesses?.find((b) => b.businessId === selectedId) ?? null;
 
   const loadStats = useCallback(async () => {
-    if (!business) return;
+    if (!selectedId) return;
     const [profileRes, reviewsRes] = await Promise.all([
-      api.get<ProfileResponse>(`/businesses/${business.businessId}`),
-      api.get<ReviewsResponse>(`/businesses/${business.businessId}/reviews`),
+      api.get<ProfileResponse>(`/businesses/${selectedId}`),
+      api.get<ReviewsResponse>(`/businesses/${selectedId}/reviews`),
     ]);
     setProfile(profileRes);
     setReviews(reviewsRes.reviews);
-  }, [business]);
+  }, [selectedId]);
 
   useEffect(() => {
-    if (business) {
+    if (selectedId) {
       loadStats();
       const interval = setInterval(loadStats, 15_000);
       return () => clearInterval(interval);
     }
-  }, [business, loadStats]);
+  }, [selectedId, loadStats]);
 
-  if (checkingAuth || business === undefined) {
+  if (checkingAuth || businesses === undefined) {
     return <CenteredMessage>Loading dashboard...</CenteredMessage>;
   }
 
-  if (business === null) {
-    return <CreateBusinessForm onCreated={loadBusiness} />;
+  if (businesses.length === 0) {
+    return (
+      <CreateBusinessForm
+        heading="Set up your business"
+        onCreated={(newId) => {
+          setSelectedId(newId);
+          loadBusinesses();
+        }}
+      />
+    );
   }
 
   return (
@@ -94,78 +115,114 @@ export default function DashboardPage() {
           <Logo markClassName="h-6 w-6" textClassName="text-base font-bold tracking-tight text-neutral-900" />
         </Link>
 
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <p className="text-sm text-neutral-500">{business.category} &middot; {business.city}</p>
-            <h1 className="text-2xl font-bold text-neutral-900">{business.name}</h1>
-          </div>
-          <div className="flex items-center gap-3">
-            <Link
-              href={`/b/?id=${business.businessId}`}
-              target="_blank"
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <select
+              className="input w-auto py-2 pr-8 text-sm font-semibold"
+              value={selectedId ?? ""}
+              onChange={(e) => setSelectedId(e.target.value)}
+            >
+              {businesses.map((b) => (
+                <option key={b.businessId} value={b.businessId}>
+                  {b.name} &middot; {b.city || "No city set"}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => setAddingLocation(true)}
               className="text-sm font-medium text-verified-700 hover:underline"
             >
-              View public profile
-            </Link>
-            <button
-              onClick={async () => {
-                await signOut();
-                router.push("/");
-              }}
-              className="text-sm font-medium text-neutral-400 hover:text-neutral-600"
-            >
-              Sign out
+              + Add location
             </button>
           </div>
+          <button
+            onClick={async () => {
+              await signOut();
+              router.push("/");
+            }}
+            className="text-sm font-medium text-neutral-400 hover:text-neutral-600"
+          >
+            Sign out
+          </button>
         </div>
 
-        <section className="card-hover card mb-6">
-          <RotatingQr businessId={business.businessId} />
-        </section>
+        {addingLocation ? (
+          <AddLocationCard
+            onCreated={(newId) => {
+              setAddingLocation(false);
+              setSelectedId(newId);
+              loadBusinesses();
+            }}
+            onCancel={() => setAddingLocation(false)}
+          />
+        ) : (
+          business && (
+            <>
+              <div className="mb-8">
+                <p className="text-sm text-neutral-500">{business.category} &middot; {business.city}</p>
+                <div className="flex items-center justify-between">
+                  <h1 className="text-2xl font-bold text-neutral-900">{business.name}</h1>
+                  <Link
+                    href={`/b/?id=${business.businessId}`}
+                    target="_blank"
+                    className="text-sm font-medium text-verified-700 hover:underline"
+                  >
+                    View public profile
+                  </Link>
+                </div>
+              </div>
 
-        {profile && (
-          <section className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
-            <Stat label="Verified visits" value={profile.visitCount} />
-            <Stat label="Reviews" value={profile.reviewCount} />
-            <Stat label="Conversion" value={`${profile.conversionPct}%`} />
-          </section>
+              <section className="card-hover card mb-6">
+                <RotatingQr businessId={business.businessId} />
+              </section>
+
+              {profile && (
+                <section className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
+                  <Stat label="Verified visits" value={profile.visitCount} />
+                  <Stat label="Reviews" value={profile.reviewCount} />
+                  <Stat label="Conversion" value={`${profile.conversionPct}%`} />
+                </section>
+              )}
+
+              {profile && (
+                <section className="card-hover card mb-6 space-y-4">
+                  <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
+                    Rating breakdown
+                  </h2>
+                  <RatingBar label="Food" value={profile.subRatings.food} />
+                  <RatingBar label="Service" value={profile.subRatings.service} />
+                  <RatingBar label="Cleanliness" value={profile.subRatings.cleanliness} />
+                  <RatingBar label="Value" value={profile.subRatings.value} />
+                </section>
+              )}
+
+              {profile?.summary && (
+                <section className="card-hover card mb-6">
+                  <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+                    AI summary
+                  </h2>
+                  <p className="text-sm leading-relaxed text-neutral-700">{profile.summary.summary}</p>
+                </section>
+              )}
+
+              <section className="card-hover card">
+                <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+                  Recent reviews
+                </h2>
+                {reviews.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-neutral-400">No reviews yet.</p>
+                ) : (
+                  <div>
+                    {reviews.map((review) => (
+                      <OwnerReviewRow key={review.reviewId} review={review} onResponded={loadStats} />
+                    ))}
+                  </div>
+                )}
+              </section>
+            </>
+          )
         )}
-
-        {profile && (
-          <section className="card-hover card mb-6 space-y-4">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
-              Rating breakdown
-            </h2>
-            <RatingBar label="Food" value={profile.subRatings.food} />
-            <RatingBar label="Service" value={profile.subRatings.service} />
-            <RatingBar label="Cleanliness" value={profile.subRatings.cleanliness} />
-            <RatingBar label="Value" value={profile.subRatings.value} />
-          </section>
-        )}
-
-        {profile?.summary && (
-          <section className="card-hover card mb-6">
-            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-neutral-500">
-              AI summary
-            </h2>
-            <p className="text-sm leading-relaxed text-neutral-700">{profile.summary.summary}</p>
-          </section>
-        )}
-
-        <section className="card-hover card">
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-neutral-500">
-            Recent reviews
-          </h2>
-          {reviews.length === 0 ? (
-            <p className="py-8 text-center text-sm text-neutral-400">No reviews yet.</p>
-          ) : (
-            <div>
-              {reviews.map((review) => (
-                <OwnerReviewRow key={review.reviewId} review={review} onResponded={loadStats} />
-              ))}
-            </div>
-          )}
-        </section>
       </div>
     </main>
   );
@@ -264,7 +321,7 @@ function OwnerReviewRow({
   );
 }
 
-function CreateBusinessForm({ onCreated }: { onCreated: () => void }) {
+function useLocationFormState() {
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
   const [city, setCity] = useState("");
@@ -283,13 +340,16 @@ function CreateBusinessForm({ onCreated }: { onCreated: () => void }) {
     setLocating(false);
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function submit(onCreated: (businessId: string) => void) {
     setSubmitting(true);
     setError(null);
     try {
-      await api.post("/businesses", { name, category, city, ...(location ?? {}) }, true);
-      onCreated();
+      const res = await api.post<{ businessId: string }>(
+        "/businesses",
+        { name, category, city, ...(location ?? {}) },
+        true
+      );
+      onCreated(res.businessId);
     } catch {
       setError("Could not create your business. Please try again.");
     } finally {
@@ -297,61 +357,121 @@ function CreateBusinessForm({ onCreated }: { onCreated: () => void }) {
     }
   }
 
+  return {
+    name, setName, category, setCategory, city, setCity,
+    location, locating, locationError, captureLocation,
+    submitting, error, submit,
+  };
+}
+
+function LocationFields({ f }: { f: ReturnType<typeof useLocationFormState> }) {
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="mb-1.5 block text-sm font-medium text-neutral-700">Business name</label>
+        <input required className="input" value={f.name} onChange={(e) => f.setName(e.target.value)} />
+      </div>
+      <div>
+        <label className="mb-1.5 block text-sm font-medium text-neutral-700">Category</label>
+        <input
+          className="input"
+          placeholder="Restaurant, Salon, Cafe..."
+          value={f.category}
+          onChange={(e) => f.setCategory(e.target.value)}
+        />
+      </div>
+      <div>
+        <label className="mb-1.5 block text-sm font-medium text-neutral-700">City</label>
+        <input className="input" value={f.city} onChange={(e) => f.setCity(e.target.value)} />
+      </div>
+      <div>
+        <button
+          type="button"
+          onClick={f.captureLocation}
+          disabled={f.locating}
+          className="btn-secondary w-full py-2.5 text-xs"
+        >
+          {f.locating
+            ? "Getting your location..."
+            : f.location
+              ? "Location captured"
+              : "Use my current location (optional)"}
+        </button>
+        <p className="mt-1.5 text-xs text-neutral-400">
+          {f.location
+            ? "Helps flag reviews scanned far from this location for a moderator to check."
+            : f.locationError
+              ? "Could not get your location. You can skip this and add it later."
+              : "Optional. Powers a soft fraud signal — never blocks a scan."}
+        </p>
+      </div>
+      {f.error && <p className="text-sm text-reject-600">{f.error}</p>}
+    </div>
+  );
+}
+
+function CreateBusinessForm({
+  heading,
+  onCreated,
+}: {
+  heading: string;
+  onCreated: (businessId: string) => void;
+}) {
+  const f = useLocationFormState();
+
   return (
     <main className="flex min-h-screen items-center justify-center px-6 py-16">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm">
-        <h1 className="mb-1 text-xl font-bold text-neutral-900">Set up your business</h1>
-        <p className="mb-6 text-sm text-neutral-500">
-          This creates your Trust Profile and QR code.
-        </p>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          f.submit(onCreated);
+        }}
+        className="w-full max-w-sm"
+      >
+        <h1 className="mb-1 text-xl font-bold text-neutral-900">{heading}</h1>
+        <p className="mb-6 text-sm text-neutral-500">This creates your Trust Profile and QR code.</p>
         <div className="card space-y-4">
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-neutral-700">
-              Business name
-            </label>
-            <input required className="input" value={name} onChange={(e) => setName(e.target.value)} />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-neutral-700">Category</label>
-            <input
-              className="input"
-              placeholder="Restaurant, Salon, Cafe..."
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-neutral-700">City</label>
-            <input className="input" value={city} onChange={(e) => setCity(e.target.value)} />
-          </div>
-          <div>
-            <button
-              type="button"
-              onClick={captureLocation}
-              disabled={locating}
-              className="btn-secondary w-full py-2.5 text-xs"
-            >
-              {locating
-                ? "Getting your location..."
-                : location
-                  ? "Location captured"
-                  : "Use my current location (optional)"}
-            </button>
-            <p className="mt-1.5 text-xs text-neutral-400">
-              {location
-                ? "Helps flag reviews scanned far from your business for a moderator to check."
-                : locationError
-                  ? "Could not get your location. You can skip this and add it later."
-                  : "Optional. Powers a soft fraud signal — never blocks a scan."}
-            </p>
-          </div>
-          {error && <p className="text-sm text-reject-600">{error}</p>}
-          <button type="submit" disabled={submitting} className="btn-primary w-full">
-            {submitting ? "Creating..." : "Create business"}
+          <LocationFields f={f} />
+          <button type="submit" disabled={f.submitting} className="btn-primary w-full">
+            {f.submitting ? "Creating..." : "Create business"}
           </button>
         </div>
       </form>
     </main>
+  );
+}
+
+function AddLocationCard({
+  onCreated,
+  onCancel,
+}: {
+  onCreated: (businessId: string) => void;
+  onCancel: () => void;
+}) {
+  const f = useLocationFormState();
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        f.submit(onCreated);
+      }}
+      className="card-hover card space-y-4"
+    >
+      <div>
+        <h2 className="text-lg font-bold text-neutral-900">Add another location</h2>
+        <p className="text-sm text-neutral-500">Each location gets its own QR code and Trust Profile.</p>
+      </div>
+      <LocationFields f={f} />
+      <div className="flex gap-2">
+        <button type="submit" disabled={f.submitting} className="btn-primary flex-1">
+          {f.submitting ? "Creating..." : "Create location"}
+        </button>
+        <button type="button" className="btn-secondary flex-1" onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+    </form>
   );
 }
 

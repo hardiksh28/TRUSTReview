@@ -1,14 +1,15 @@
 import type { APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyHandlerV2 } from "aws-lambda";
 import { QueryCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, TABLES, BUSINESSES_OWNER_GSI } from "../lib/dynamo";
-import { notFound, ok, serverError, unauthorized } from "../lib/response";
+import { ok, serverError, unauthorized } from "../lib/response";
 import { getUserSub } from "../lib/auth";
 
 /**
  * GET /businesses/mine (owner auth)
  * Not in the original API contract table, but required glue: after login,
- * the dashboard (S3) needs to resolve "my business" without the owner
- * having to remember/paste their businessId.
+ * the dashboard needs to resolve every business this owner has (multi-location
+ * support — one owner can run several Trust Profiles) without them having to
+ * remember/paste a businessId.
  */
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   try {
@@ -22,14 +23,10 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
         IndexName: BUSINESSES_OWNER_GSI,
         KeyConditionExpression: "ownerId = :ownerId",
         ExpressionAttributeValues: { ":ownerId": ownerId },
-        Limit: 1,
       })
     );
 
-    const business = result.Items?.[0];
-    if (!business) return notFound("No business found for this owner");
-
-    return ok({ business });
+    return ok({ businesses: result.Items ?? [] });
   } catch (err) {
     console.error("getMyBusiness failed", err);
     return serverError();
