@@ -270,4 +270,26 @@ were never on the table to cut.
 
 ## What I learned
 
-_(Fill this in after the hackathon — name a real bug you hit. Judges score this explicitly.)_
+The gap between "the code looks right" and "it runs correctly against real AWS" turned out to be
+the biggest lesson of the weekend. Three bugs only surfaced once the stack was actually deployed:
+
+- **DynamoDB silently reserves ordinary-looking words.** `sum`, `value`, and `hidden` — all
+  completely unremarkable field names — are reserved keywords in DynamoDB's `UpdateExpression`
+  grammar, and using them unaliased throws a `ValidationException` at runtime, not at write time.
+  The fix (`ExpressionAttributeNames` placeholders for every attribute, not just the ones I
+  guessed might collide) is trivial once you know — the expensive part was learning that "looks
+  like a normal word" is not a safe assumption with this API.
+- **API Gateway can base64-encode the request body** depending on the client's `Content-Type`
+  header, and `JSON.parse(event.body)` will throw on a perfectly valid request if the handler
+  doesn't check `isBase64Encoded` first. My own frontend always sent the right header, so this
+  passed every test until I hit it from a plain `curl -d`.
+- **Amplify Hosting's SSR "compute" mode expects a specific `.amplify-hosting/deploy-manifest.json`
+  build contract**, not just a `next build` pointed at `.next`. Since every screen here already
+  fetches its data from the API at runtime, the actual fix was realizing SSR was never necessary —
+  switching to a static export removed the dependency on an internal Amplify build contract
+  entirely, and is simpler besides.
+
+None of these were caught by `tsc`, local builds, or code review — only by issuing real tokens,
+redeeming them, and reading real CloudWatch logs against the deployed stack. The single-use-token
+conditional write — the one piece of logic the whole product depends on — worked correctly on the
+first deploy. The parts I was least worried about were the ones that broke.
